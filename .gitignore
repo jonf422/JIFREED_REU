@@ -1,7 +1,38 @@
+# ROS2 build artifacts
 build/
 install/
 log/
+
+# Python
 __pycache__/
 *.pyc
 *.pyo
+*.pyd
+.Python
+*.egg-info/
+dist/
+.eggs/
+
+# VSCode
+.vscode/
+
+# Environment
+.env
+*.env
+
+# OS
 .DS_Store
+Thumbs.db
+
+# Jupyter notebooks checkpoints
+.ipynb_checkpoints/
+
+# ML training artifacts - weights and datasets can be large
+*.pt
+*.pth
+*.onnx
+runs/
+datasets/
+
+# Logs
+*.log
