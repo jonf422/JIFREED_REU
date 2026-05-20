@@ -8,6 +8,7 @@ class drawCircleNode(Node):
         super().__init__("draw_circle")
 
         self.cmd_vel_pub_ = self.create_publisher(Twist, "/turtle1/cmd_vel", 10)
+        self.create_timer(1.0, self.send_vel_cmd)
         self.get_logger().info("draw_circle Node initialized")
 
     def send_vel_cmd(self):
@@ -19,7 +20,8 @@ class drawCircleNode(Node):
 def main(args=None):
     rclpy.init(args=args)
 
-
+    node = drawCircleNode()
+    rclpy.spin(node)
 
     rclpy.shutdown()
 
