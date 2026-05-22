@@ -6,7 +6,7 @@ Subscribes to /vision/realsense_display
 
 Usage
 -----
-ros2 run weed_detection display_node
+ros2 run weed_detection realsense_display_node
 '''
 import rclpy
 from rclpy.node import Node
