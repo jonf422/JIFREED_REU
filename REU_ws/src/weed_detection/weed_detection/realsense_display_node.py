@@ -26,7 +26,7 @@ class realsenseDisplayNode(Node):
         super().__init__("realsense_display_node")
 
         self._bridge = CvBridge()
-        self._realsense_color_sub = self.create_subscription(Image, "/vision/realsense_display", self.realsense_display_cb, SENSOR_QOS)
+        self._realsense_display_sub = self.create_subscription(Image, "/vision/realsense_display", self.realsense_display_cb, SENSOR_QOS)
 
         self.get_logger().info("realsense_display_node Started")
 
