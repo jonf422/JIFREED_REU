@@ -23,7 +23,7 @@ SENSOR_QOS = QoSProfile(
 
 class arducamDisplayNode(Node):
     def __init__(self):
-        super().__init__("realsense_display_node")
+        super().__init__("arducam_display_node")
 
         self._bridge = CvBridge()
         self._arducam_display_sub = self.create_subscription(Image, "/vision/arducam_display", self.arducam_display_cb, SENSOR_QOS)
