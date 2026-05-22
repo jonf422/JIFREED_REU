@@ -39,7 +39,7 @@ class ArducamNode(Node):
     def __init__(self):
         super().__init__('arducam_node')
 
-        self.declare_parameter('device_id', 1)
+        self.declare_parameter('device_id', 0)
         self.declare_parameter('width',   640)
         self.declare_parameter('height',  480)
         self.declare_parameter('fps',      30)
