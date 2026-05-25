@@ -49,30 +49,36 @@ class RealSenseNode(Node):
         self.declare_parameter('height', 480)
         self.declare_parameter('fps',     30)
 
-        w   = self.get_parameter('width').value
-        h   = self.get_parameter('height').value
+        w = self.get_parameter('width').value
+        h = self.get_parameter('height').value
         fps = self.get_parameter('fps').value
 
         # Publishers
         self._bridge = CvBridge()
 
-        self._color_pub   = self.create_publisher(Image, '/vision/realsense_color',      SENSOR_QOS)
-        self._display_pub = self.create_publisher(Image, '/vision/realsense_display',     SENSOR_QOS)
-        self._info_pub    = self.create_publisher(CameraInfo, '/vision/realsense_camera_info', 1)
+        self._color_pub = self.create_publisher(Image, '/vision/realsense_color', SENSOR_QOS)
+        self._depth_pub = self.create_publisher(Image, '/vision/realsense_depth', SENSOR_QOS)
+        self._display_pub = self.create_publisher(Image, '/vision/realsense_display', SENSOR_QOS)
+        self._info_pub = self.create_publisher(CameraInfo, '/vision/realsense_camera_info', 1)
 
+    
         # Start RealSense pipeline
         self._pipeline = rs.pipeline()
         cfg = rs.config()
         cfg.enable_stream(rs.stream.color, w, h, rs.format.bgr8, fps)
+        cfg.enable_stream(rs.stream.depth, w, h, rs.format.z16~, fps)
         profile = self._pipeline.start(cfg)
+
+        # Align depth to color frame
+        self._align = rs.align(rs.stream.color)
 
         # Extract and cache intrinsics for CameraInfo
         intr = (profile
                 .get_stream(rs.stream.color)
                 .as_video_stream_profile()
                 .get_intrinsics())
-
         self._camera_info = self._build_camera_info(intr, w, h)
+
 
         self.get_logger().info(
             f"RealSense pipeline started ({w}×{h} @ {fps} fps). "
@@ -114,27 +120,39 @@ class RealSenseNode(Node):
         except RuntimeError:
             return  # No frame arrived within the timeout — skip this tick
 
-        color_frame = frames.get_color_frame()
-        if not color_frame:
+        #align depth frame
+        aligned = self._align.process(frames)
+
+        color_frame = aligned.get_color_frame()
+        depth_frame = aligned.get_depth_frame()
+
+        if not color_frame or not depth_frame:
             return
 
-        frame = np.asanyarray(color_frame.get_data())
         stamp = self.get_clock().now().to_msg()
 
-        # Build image message (shared header)
-        img_msg = self._bridge.cv2_to_imgmsg(frame, encoding='bgr8')
-        img_msg.header.stamp    = stamp
-        img_msg.header.frame_id = 'realsense_color_optical_frame'
+        # Build color image message
+        color_image = np.asanyarray(color_frame.get_data())
+        color_msg = self._bridge.cv2_to_imgmsg(color_image, encoding='bgr8')
+        color_msg.header.stamp = stamp
+        color_msg.header.frame_id = 'realsense_color_optical_frame'
 
-        # Publish on the processing topic (queue-2 keeps backpressure low)
-        self._color_pub.publish(img_msg)
+        #Build depth image message (16-bit, mm)
+        depth_image = np.asanyarray(depth_frame.get_data())
+        depth_msg = self._bridge.cv2_to_imgmsg(depth_image, encoding='16UC1')
+        depth_msg.header.stamp = stamp
+        depth_msg.header.frame_id = 'realsense_color_optical_frame'
+
+        # Publish color and depth on the processing topics (queue-2 keeps backpressure low)
+        self._color_pub.publish(color_msg)
+        self._depth_pub.publish(depth_msg)
 
         # Display topic — same message, subscribers use it for visualisation
-        self._display_pub.publish(img_msg)
+        self._display_pub.publish(color_msg)
 
         # Publish CameraInfo at the same rate (latched-style: always fresh)
         self._camera_info.header.stamp    = stamp
-        self._camera_info.header.frame_id = img_msg.header.frame_id
+        self._camera_info.header.frame_id = color_msg.header.frame_id
         self._info_pub.publish(self._camera_info)
 
     # -----------------------------------------------------------------------
