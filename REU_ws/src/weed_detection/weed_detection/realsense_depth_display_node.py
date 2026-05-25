@@ -17,6 +17,15 @@ class depthDisplayNode(Node):
     def __init__(self):
         super().__init__("realsense_depth_display_node")
 
+        #ROS2 parameters
+        self.declare_parameter('width',  640)
+        self.declare_parameter('height', 480)
+        self.declare_parameter('fps',     30)
+
+        self.w = self.get_parameter('width').value
+        self.h = self.get_parameter('height').value
+        self.fps = self.get_parameter('fps').value
+
         self._bridge = CvBridge()
         self._depth_sub = self.create_subscription(Image, "/vision/realsense_depth", self.depth_display_cb, SENSOR_QOS)
 
@@ -39,13 +48,13 @@ class depthDisplayNode(Node):
         cv2.moveWindow('Depth', 660, 0)
         cv2.waitKey(1)
 
-        h, w = depth.shape
-        center_depth = depth[h//2, w//2]
+        
+        center_depth = depth[self.h//2, selfw//2]
 
         self._log_counter += 1
         #log once every second
-        if self._log_counter % 30 == 0: 
-            self.get_logger().info(f"Center pixel depth: {center_depth}mm ({center_depth/1000:.2f}m)", throttle_duration_sec=1.0)
+        if self._log_counter % self.fps == 0: 
+            self.get_logger().info(f"Center pixel depth: {center_depth}mm ({center_depth/1000:.2f}m)")
 
     def destroy_node(self) -> None:
         self.get_logger().info("Destroying realsense_display_node")
