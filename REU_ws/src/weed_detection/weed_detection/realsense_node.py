@@ -66,7 +66,7 @@ class RealSenseNode(Node):
         self._pipeline = rs.pipeline()
         cfg = rs.config()
         cfg.enable_stream(rs.stream.color, w, h, rs.format.bgr8, fps)
-        cfg.enable_stream(rs.stream.depth, w, h, rs.format.z16~, fps)
+        cfg.enable_stream(rs.stream.depth, w, h, rs.format.z16, fps)
         profile = self._pipeline.start(cfg)
 
         # Align depth to color frame
