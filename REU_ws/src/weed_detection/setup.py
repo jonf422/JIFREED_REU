@@ -26,6 +26,7 @@ setup(
         'console_scripts': [
             "realsense_node = weed_detection.realsense_node:main",
             "realsense_display_node = weed_detection.realsense_display_node:main",
+            "realsense_depth_display_node = weed_detection.realsense_depth_display_node:main",
             "arducam_node = weed_detection.arducam_node:main",
             "arducam_display_node = weed_detection.arducam_display_node:main"
         ],
