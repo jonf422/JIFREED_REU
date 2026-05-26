@@ -49,7 +49,7 @@ class depthDisplayNode(Node):
         cv2.waitKey(1)
 
         
-        center_depth = depth[self.h//2, selfw//2]
+        center_depth = depth[self.h//2, self.w//2]
 
         self._log_counter += 1
         #log once every second
