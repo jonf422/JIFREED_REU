@@ -11,6 +11,7 @@ try to call rs.pipeline().start() on the same USB device.
 Topics published
 ----------------
 /vision/realsense_color        (sensor_msgs/Image,      bgr8)  — colour frames
+/vision/realsense_depth      (sensor_msgs/Image,      z16)   — depth frames
 /vision/realsense_camera_info  (sensor_msgs/CameraInfo)        — intrinsics
 /vision/realsense_display      (sensor_msgs/Image,      bgr8)  — alias for display_node
                                  (same data, separate publisher so display_node
@@ -120,7 +121,7 @@ class RealSenseNode(Node):
         except RuntimeError:
             return  # No frame arrived within the timeout — skip this tick
 
-        #align depth frame
+        #align depth frame to color frame and extract
         aligned = self._align.process(frames)
 
         color_frame = aligned.get_color_frame()
@@ -151,7 +152,7 @@ class RealSenseNode(Node):
         self._display_pub.publish(color_msg)
 
         # Publish CameraInfo at the same rate (latched-style: always fresh)
-        self._camera_info.header.stamp    = stamp
+        self._camera_info.header.stamp = stamp
         self._camera_info.header.frame_id = color_msg.header.frame_id
         self._info_pub.publish(self._camera_info)
 
