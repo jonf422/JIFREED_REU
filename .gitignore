@@ -36,3 +36,6 @@ datasets/
 
 # Logs
 *.log
+
+# Venv
+venv/
