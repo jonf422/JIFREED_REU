@@ -5,7 +5,7 @@ from ultralytics import YOLO
 model = YOLO("yolo26n.pt")
 
 # Open video file or camera stream ("0" for webcam)
-video_path = "videoplayback.mp4" 
+video_path = "skiers.mp4" 
 cap = cv2.VideoCapture(video_path)
 
 while cap.isOpened():
@@ -14,8 +14,8 @@ while cap.isOpened():
         pass
 
     # Run YOLO object detection on the frame
-    results = model(frame)
-
+    results = model(frame, classes=[0])
+    
     #annotate bounding box onto frame
     annotated_img = results[0].plot()
 
