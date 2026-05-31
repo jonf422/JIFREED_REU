@@ -6,7 +6,7 @@ from collections import defaultdict, deque
 path = 'skiers.mp4'
 cap = cv2.VideoCapture(path)
 
-model = YOLO('yolo26n')
+model = YOLO('yolo26n.pt')
 
 id_map = {}
 next_id = 1

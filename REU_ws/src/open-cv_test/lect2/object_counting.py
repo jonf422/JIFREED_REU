@@ -5,7 +5,7 @@ import numpy
 path = 'skiers.mp4'
 cap = cv2.VideoCapture(path)
 
-model = YOLO('yolo26n')
+model = YOLO('yolo26n.pt')
 unique_ids = set()
 
 while cap.isOpened():
