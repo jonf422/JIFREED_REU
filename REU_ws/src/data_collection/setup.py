@@ -24,6 +24,10 @@ setup(
     },
     entry_points={
         'console_scripts': [
+            "teleop_node = data_collection.teleop_node:main",
+            "realsense_node = data_collection.realsense_node:main",
+            "arducam_node = data_collection.arducam_node:main",
+            "data_save = data_collection.data_collection_node:main"
         ],
     },
 )

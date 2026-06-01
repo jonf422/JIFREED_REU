@@ -1,6 +1,8 @@
 #!/usr/bin/env python3
 
 #SEED25
+
+#ADDED DEPTH STREAM PUBLISHER
 """
 realsense_node.py
 
