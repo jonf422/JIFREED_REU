@@ -50,13 +50,10 @@ class dataCollectionNode(Node):
     def __init__(self):
         super().__init__('data_collection_node')
 
-        #vision topic caches
+        #latest frames cached for capture on keypress
         self._latest_rs_color = None
         self._latest_rs_depth = None
         self._latest_arducam  = None
-
-        #pending preview frames — None when idle, dict when awaiting save/discard
-        self._pending_preview = None
 
         #initialize cv bridge
         self._bridge = CvBridge()
@@ -71,32 +68,35 @@ class dataCollectionNode(Node):
             os.makedirs(d, exist_ok=True)
         self._save_index = _next_index(REALSENSE_RGB_DIR, REALSENSE_DEPTH_DIR, ARDUCAM_RGB_DIR)
 
-        #timer to keep OpenCV windows alive — mirrors display node pattern
-        self.create_timer(1.0 / 30.0, self._preview_timer_cb)
-
         self.get_logger().info(f'Data collection node ready. Next save index: {self._save_index}')
 
-    # --- Vision callbacks -> save latest publish to cache ---
+    # --- Vision callbacks: display live video and cache latest frame ---
 
     def _rs_color_cb(self, msg: Image):
-        self._latest_rs_color = msg
+        frame = self._bridge.imgmsg_to_cv2(msg, desired_encoding='bgr8')
+        self._latest_rs_color = frame
+        cv2.imshow('RealSense Color', frame)
+        cv2.waitKey(1)
 
     def _rs_depth_cb(self, msg: Image):
-        self._latest_rs_depth = msg
+        depth = self._bridge.imgmsg_to_cv2(msg, desired_encoding='16UC1')
+        self._latest_rs_depth = depth
+        #normalize depth to 8-bit colormap for display (raw 16UC1 appears black)
+        depth_display  = cv2.normalize(depth, None, 0, 255, cv2.NORM_MINMAX, dtype=cv2.CV_8U)
+        depth_colormap = cv2.applyColorMap(depth_display, cv2.COLORMAP_JET)
+        cv2.imshow('RealSense Depth', depth_colormap)
+        cv2.waitKey(1)
 
     def _arducam_cb(self, msg: Image):
-        self._latest_arducam = msg
+        frame = self._bridge.imgmsg_to_cv2(msg, desired_encoding='bgr8')
+        self._latest_arducam = frame
+        cv2.imshow('Arducam', frame)
+        cv2.waitKey(1)
 
-    # --- Preview timer: pumps OpenCV event loop at 30hz while preview is active ---
+    # --- Capture: snapshot all currently displayed frames ---
 
-    def _preview_timer_cb(self):
-        if self._pending_preview is not None:
-            cv2.waitKey(1)
-
-    # --- Data collection ---
-
-    def grab_data(self):
-        #check for data availability
+    def capture(self):
+        """Snapshots the latest cached frame from each stream simultaneously."""
         missing = []
         if self._latest_rs_color is None: missing.append('RealSense color')
         if self._latest_rs_depth is None: missing.append('RealSense depth')
@@ -105,30 +105,12 @@ class dataCollectionNode(Node):
             print(f'  [!] Missing frames from: {", ".join(missing)}')
             return None
 
-        #convert cached messages to OpenCV images
-        rs_color = self._bridge.imgmsg_to_cv2(self._latest_rs_color, desired_encoding='bgr8')
-        rs_depth = self._bridge.imgmsg_to_cv2(self._latest_rs_depth, desired_encoding='16UC1')
-        arducam  = self._bridge.imgmsg_to_cv2(self._latest_arducam,  desired_encoding='bgr8')
-
+        #return copies so the cache can keep updating without affecting pending
         return {
-            'rs_color': rs_color,
-            'rs_depth': rs_depth,
-            'arducam':  arducam,
+            'rs_color': self._latest_rs_color.copy(),
+            'rs_depth': self._latest_rs_depth.copy(),
+            'arducam':  self._latest_arducam.copy(),
         }
-
-    # --- Preview ---
-
-    def preview(self, frames: dict):
-        #normalize depth to 8-bit colormap for display (raw 16UC1 appears black)
-        depth_display  = cv2.normalize(frames['rs_depth'], None, 0, 255, cv2.NORM_MINMAX, dtype=cv2.CV_8U)
-        depth_colormap = cv2.applyColorMap(depth_display, cv2.COLORMAP_JET)
-
-        cv2.imshow('RealSense Color — S: save  D: discard', frames['rs_color'])
-        cv2.imshow('RealSense Depth — S: save  D: discard', depth_colormap)
-        cv2.imshow('Arducam        — S: save  D: discard', frames['arducam'])
-
-        #activate preview timer
-        self._pending_preview = frames
 
     # --- Save ---
 
@@ -150,10 +132,6 @@ class dataCollectionNode(Node):
         print(f'  [✓] Saved capture #{idx}:')
         for p in paths.values():
             print(f'        {p}')
-
-    def close_preview(self):
-        self._pending_preview = None
-        cv2.destroyAllWindows()
 
     def destroy_node(self) -> None:
         self.get_logger().info('Destroying data_collection_node')
@@ -188,13 +166,9 @@ def main(args=None):
     settings = termios.tcgetattr(sys.stdin)
 
     print("\n" + "="*40)
-    print("  S — grab all cameras and preview")
-    print("  S — save previewed frames")
-    print("  D — discard previewed frames")
+    print("  S — capture and save all frames")
     print("  Ctrl+C — exit")
     print("="*40 + "\n")
-
-    pending = None
 
     try:
         while rclpy.ok():
@@ -202,25 +176,9 @@ def main(args=None):
             key = get_key(settings, timeout=0.1)
 
             if key == SAVE:
-                if pending is None:
-                    # First S — grab and preview
-                    pending = node.grab_data()
-                    if pending is not None:
-                        node.preview(pending)
-                        print(f'  [?] Capture #{node._save_index} ready. S to save, D to discard.')
-                else:
-                    # Second S — confirm save
-                    node.save_all(pending)
-                    node.close_preview()
-                    pending = None
-
-            elif key == DISCARD:
-                if pending is None:
-                    print('  [!] Nothing to discard — press S to grab first.')
-                else:
-                    print(f'  [x] Capture #{node._save_index} discarded.')
-                    node.close_preview()
-                    pending = None
+                frames = node.capture()
+                if frames is not None:
+                    node.save_all(frames)
 
             elif key == QUIT:
                 break
@@ -229,8 +187,6 @@ def main(args=None):
         node.get_logger().error(f'Error: {e}')
 
     finally:
-        if pending is not None:
-            node.close_preview()
         termios.tcsetattr(sys.stdin, termios.TCSADRAIN, settings)
         node.destroy_node()
         rclpy.shutdown()
