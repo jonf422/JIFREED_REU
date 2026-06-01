@@ -81,8 +81,7 @@ class dataCollectionNode(Node):
 
     #Data collection method
     def grab_data(self):
-
-        #check for data availability
+        # check for data availability
         missing = []
         if self._latest_rs_color is None: missing.append('RealSense color')
         if self._latest_rs_depth is None: missing.append('RealSense depth')
@@ -90,20 +89,31 @@ class dataCollectionNode(Node):
         if missing:
             print(f'  [!] Missing frames from: {", ".join(missing)}')
             return None
-        
-        #if all data available, return as dict from data caches
+
+        # --- DIAGNOSTIC BLOCK (remove once confirmed working) ---
+        rs_color = self._bridge.imgmsg_to_cv2(self._latest_rs_color, desired_encoding='bgr8')
+        rs_depth = self._bridge.imgmsg_to_cv2(self._latest_rs_depth, desired_encoding='16UC1')
+        arducam  = self._bridge.imgmsg_to_cv2(self._latest_arducam,  desired_encoding='bgr8')
+
+        print(f'  [DBG] rs_color  encoding={self._latest_rs_color.encoding}  shape={rs_color.shape}  min={rs_color.min()}  max={rs_color.max()}')
+        print(f'  [DBG] rs_depth  encoding={self._latest_rs_depth.encoding}  shape={rs_depth.shape}  min={rs_depth.min()}  max={rs_depth.max()}')
+        print(f'  [DBG] arducam   encoding={self._latest_arducam.encoding}   shape={arducam.shape}   min={arducam.min()}   max={arducam.max()}')
+
         return {
-            'rs_color': self._bridge.imgmsg_to_cv2(
-                self._latest_rs_color, desired_encoding='bgr8'),
-            'rs_depth': self._bridge.imgmsg_to_cv2(
-                self._latest_rs_depth, desired_encoding='16UC1'),
-            'arducam':  self._bridge.imgmsg_to_cv2(
-                self._latest_arducam, desired_encoding='bgr8'),
+            'rs_color': rs_color,
+            'rs_depth': rs_depth,
+            'arducam':  arducam,
         }
     
     #preview captured data
     def preview(self, frames: dict):
         cv2.imshow('RealSense Color — S: save  D: discard', frames['rs_color'])
+
+        depth_display = cv2.normalize(
+            frames['rs_depth'], None, 0, 255, cv2.NORM_MINMAX, dtype=cv2.CV_8U)
+        depth_colormap = cv2.applyColorMap(depth_display, cv2.COLORMAP_JET)
+        cv2.imshow('RealSense Depth — S: save  D: discard', depth_colormap)
+
         cv2.imshow('Arducam        — S: save  D: discard', frames['arducam'])
         cv2.waitKey(1)
 
