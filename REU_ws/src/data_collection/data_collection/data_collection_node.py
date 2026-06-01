@@ -115,7 +115,7 @@ class dataCollectionNode(Node):
         cv2.imshow('RealSense Depth — S: save  D: discard', depth_colormap)
 
         cv2.imshow('Arducam        — S: save  D: discard', frames['arducam'])
-        cv2.waitKey(1)
+        
 
     #save data
     def save_all(self, frames: dict):
@@ -176,6 +176,7 @@ def main(args=None):
     try:
         while rclpy.ok():
             rclpy.spin_once(node, timeout_sec=0.0)
+            cv2.waitkey(1)
             key = get_key(settings, timeout=0.1)
             
             if key == SAVE:
@@ -183,6 +184,7 @@ def main(args=None):
                     pending = node.grab_data()
                     if pending is not None:
                         node.preview(pending)
+                        cv2.waitKey(500)
                         print(f'  [?] Capture #{node._save_index} ready. S to save, D to discard.')
                 else:
                     # Second S — confirm save
