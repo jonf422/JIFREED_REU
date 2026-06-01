@@ -176,7 +176,7 @@ def main(args=None):
     try:
         while rclpy.ok():
             rclpy.spin_once(node, timeout_sec=0.0)
-            cv2.waitkey(1)
+            cv2.waitKey(1)
             key = get_key(settings, timeout=0.1)
             
             if key == SAVE:
