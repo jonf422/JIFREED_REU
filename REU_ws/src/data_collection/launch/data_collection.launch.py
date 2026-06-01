@@ -20,7 +20,7 @@ def generate_launch_description():
             output='screen',
         ),
 
-        # Teleop — drive control, opened in separate terminal for isolated keyboard focus
+        # Teleop — own terminal for isolated keyboard focus
         Node(
             package='data_collection',
             executable='teleop_node',
@@ -29,12 +29,13 @@ def generate_launch_description():
             prefix='xterm -e',
         ),
 
-        # Data collection — live video display + save on keypress
+        # Data collection — own terminal for keyboard input + OpenCV windows
         Node(
             package='data_collection',
             executable='data_save',
             name='data_collection_node',
             output='screen',
+            prefix='xterm -e',
         ),
 
     ])
