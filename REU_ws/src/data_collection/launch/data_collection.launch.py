@@ -4,7 +4,6 @@ from launch_ros.actions import Node
 def generate_launch_description():
     return LaunchDescription([
 
-        # RealSense camera — color + aligned depth publisher
         Node(
             package='data_collection',
             executable='realsense_node',
@@ -12,7 +11,6 @@ def generate_launch_description():
             output='screen',
         ),
 
-        # Arducam — RGB publisher
         Node(
             package='data_collection',
             executable='arducam_node',
@@ -20,16 +18,6 @@ def generate_launch_description():
             output='screen',
         ),
 
-        # Teleop — own terminal for isolated keyboard focus
-        Node(
-            package='data_collection',
-            executable='teleop_node',
-            name='teleop_node',
-            output='screen',
-            prefix='xterm -e',
-        ),
-
-        # Data collection — own terminal for keyboard input + OpenCV windows
         Node(
             package='data_collection',
             executable='data_save',
