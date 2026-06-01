@@ -18,9 +18,9 @@ SENSOR_QOS = QoSProfile(
 )
 
 #data filepaths
-REALSENSE_RGB_DIR = os.path.expanduser('~/JIFREED_REU/REU_ws/datasets/realsense_rgb_data')
+REALSENSE_RGB_DIR   = os.path.expanduser('~/JIFREED_REU/REU_ws/datasets/realsense_rgb_data')
 REALSENSE_DEPTH_DIR = os.path.expanduser('~/JIFREED_REU/REU_ws/datasets/realsense_depth_data')
-ARDUCAM_RGB_DIR = os.path.expanduser('~/JIFREED_REU/REU_ws/datasets/arducam_rgb_data')
+ARDUCAM_RGB_DIR     = os.path.expanduser('~/JIFREED_REU/REU_ws/datasets/arducam_rgb_data')
 
 #keybinds
 SAVE    = 's'
@@ -45,6 +45,7 @@ def _next_index(*dirs: str) -> int:
                 max_idx = max(max_idx, int(parts[1]))
     return max_idx + 1
 
+
 class dataCollectionNode(Node):
     def __init__(self):
         super().__init__('data_collection_node')
@@ -52,24 +53,31 @@ class dataCollectionNode(Node):
         #vision topic caches
         self._latest_rs_color = None
         self._latest_rs_depth = None
-        self._latest_arducam = None
+        self._latest_arducam  = None
+
+        #pending preview frames — None when idle, dict when awaiting save/discard
+        self._pending_preview = None
 
         #initialize cv bridge
         self._bridge = CvBridge()
 
         #vision topic subscribers
-        self._realsense_rgb_sub = self.create_subscription(Image, "/vision/realsense_color", self._rs_color_cb, SENSOR_QOS)
-        self._realsense_depth_sub = self.create_subscription(Image, "/vision/realsense_depth", self._rs_depth_cb, SENSOR_QOS)
-        self._arducam_rgb_sub = self.create_subscription(Image, "/vision/arducam_raw", self._arducam_cb, SENSOR_QOS)
+        self._realsense_rgb_sub   = self.create_subscription(Image, '/vision/realsense_color', self._rs_color_cb,  SENSOR_QOS)
+        self._realsense_depth_sub = self.create_subscription(Image, '/vision/realsense_depth', self._rs_depth_cb,  SENSOR_QOS)
+        self._arducam_rgb_sub     = self.create_subscription(Image, '/vision/arducam_raw',     self._arducam_cb,   SENSOR_QOS)
 
-        #prepare data collection directories, index
+        #prepare data collection directories and starting index
         for d in [REALSENSE_RGB_DIR, REALSENSE_DEPTH_DIR, ARDUCAM_RGB_DIR]:
             os.makedirs(d, exist_ok=True)
         self._save_index = _next_index(REALSENSE_RGB_DIR, REALSENSE_DEPTH_DIR, ARDUCAM_RGB_DIR)
-        
+
+        #timer to keep OpenCV windows alive — mirrors display node pattern
+        self.create_timer(1.0 / 30.0, self._preview_timer_cb)
+
         self.get_logger().info(f'Data collection node ready. Next save index: {self._save_index}')
 
-    #vision callbacks -> save latest publish to cache
+    # --- Vision callbacks -> save latest publish to cache ---
+
     def _rs_color_cb(self, msg: Image):
         self._latest_rs_color = msg
 
@@ -79,9 +87,16 @@ class dataCollectionNode(Node):
     def _arducam_cb(self, msg: Image):
         self._latest_arducam = msg
 
-    #Data collection method
+    # --- Preview timer: pumps OpenCV event loop at 30hz while preview is active ---
+
+    def _preview_timer_cb(self):
+        if self._pending_preview is not None:
+            cv2.waitKey(1)
+
+    # --- Data collection ---
+
     def grab_data(self):
-        # check for data availability
+        #check for data availability
         missing = []
         if self._latest_rs_color is None: missing.append('RealSense color')
         if self._latest_rs_depth is None: missing.append('RealSense depth')
@@ -90,45 +105,44 @@ class dataCollectionNode(Node):
             print(f'  [!] Missing frames from: {", ".join(missing)}')
             return None
 
-        # --- DIAGNOSTIC BLOCK (remove once confirmed working) ---
+        #convert cached messages to OpenCV images
         rs_color = self._bridge.imgmsg_to_cv2(self._latest_rs_color, desired_encoding='bgr8')
         rs_depth = self._bridge.imgmsg_to_cv2(self._latest_rs_depth, desired_encoding='16UC1')
         arducam  = self._bridge.imgmsg_to_cv2(self._latest_arducam,  desired_encoding='bgr8')
-
-        print(f'  [DBG] rs_color  encoding={self._latest_rs_color.encoding}  shape={rs_color.shape}  min={rs_color.min()}  max={rs_color.max()}')
-        print(f'  [DBG] rs_depth  encoding={self._latest_rs_depth.encoding}  shape={rs_depth.shape}  min={rs_depth.min()}  max={rs_depth.max()}')
-        print(f'  [DBG] arducam   encoding={self._latest_arducam.encoding}   shape={arducam.shape}   min={arducam.min()}   max={arducam.max()}')
 
         return {
             'rs_color': rs_color,
             'rs_depth': rs_depth,
             'arducam':  arducam,
         }
-    
-    #preview captured data
+
+    # --- Preview ---
+
     def preview(self, frames: dict):
-        cv2.imshow('RealSense Color — S: save  D: discard', frames['rs_color'])
-
-        depth_display = cv2.normalize(
-            frames['rs_depth'], None, 0, 255, cv2.NORM_MINMAX, dtype=cv2.CV_8U)
+        #normalize depth to 8-bit colormap for display (raw 16UC1 appears black)
+        depth_display  = cv2.normalize(frames['rs_depth'], None, 0, 255, cv2.NORM_MINMAX, dtype=cv2.CV_8U)
         depth_colormap = cv2.applyColorMap(depth_display, cv2.COLORMAP_JET)
+
+        cv2.imshow('RealSense Color — S: save  D: discard', frames['rs_color'])
         cv2.imshow('RealSense Depth — S: save  D: discard', depth_colormap)
-
         cv2.imshow('Arducam        — S: save  D: discard', frames['arducam'])
-        
 
-    #save data
+        #activate preview timer
+        self._pending_preview = frames
+
+    # --- Save ---
+
     def save_all(self, frames: dict):
         idx = self._save_index
 
         paths = {
             'rs_color': os.path.join(REALSENSE_RGB_DIR,   f'realsense_color_{idx}.jpg'),
-            'rs_depth': os.path.join(REALSENSE_DEPTH_DIR, f'realsense_depth_{idx}.png'),
+            'rs_depth': os.path.join(REALSENSE_DEPTH_DIR, f'realsense_depth_{idx}.png'),  # PNG preserves 16-bit depth
             'arducam':  os.path.join(ARDUCAM_RGB_DIR,     f'arducam_color_{idx}.jpg'),
         }
 
         cv2.imwrite(paths['rs_color'], frames['rs_color'])
-        cv2.imwrite(paths['rs_depth'], frames['rs_depth'])  # PNG preserves 16-bit depth
+        cv2.imwrite(paths['rs_depth'], frames['rs_depth'])
         cv2.imwrite(paths['arducam'],  frames['arducam'])
 
         self._save_index += 1
@@ -138,14 +152,22 @@ class dataCollectionNode(Node):
             print(f'        {p}')
 
     def close_preview(self):
+        self._pending_preview = None
         cv2.destroyAllWindows()
-        
+
+    def destroy_node(self) -> None:
+        self.get_logger().info('Destroying data_collection_node')
+        cv2.destroyAllWindows()
+        super().destroy_node()
+
+
+# ---------------------------------------------------------------------------
 
 def get_key(settings, timeout=0.1):
     """Reads a single keypress from the terminal without requiring Enter."""
     tty.setraw(sys.stdin.fileno())
     rlist, _, _ = select.select([sys.stdin], [], [], timeout)
-    
+
     if rlist:
         key = sys.stdin.read(1)
         # If it's an escape character, read the next two bytes for arrow keys
@@ -153,9 +175,10 @@ def get_key(settings, timeout=0.1):
             key += sys.stdin.read(2)
     else:
         key = ''
-        
+
     termios.tcsetattr(sys.stdin, termios.TCSADRAIN, settings)
     return key
+
 
 def main(args=None):
     rclpy.init(args=args)
@@ -165,9 +188,9 @@ def main(args=None):
     settings = termios.tcgetattr(sys.stdin)
 
     print("\n" + "="*40)
-    print("  S — grab frame and preview")
-    print("  S — save previewed frame")
-    print("  D — discard previewed frame")
+    print("  S — grab all cameras and preview")
+    print("  S — save previewed frames")
+    print("  D — discard previewed frames")
     print("  Ctrl+C — exit")
     print("="*40 + "\n")
 
@@ -176,15 +199,14 @@ def main(args=None):
     try:
         while rclpy.ok():
             rclpy.spin_once(node, timeout_sec=0.0)
-            cv2.waitKey(1)
             key = get_key(settings, timeout=0.1)
-            
+
             if key == SAVE:
                 if pending is None:
+                    # First S — grab and preview
                     pending = node.grab_data()
                     if pending is not None:
                         node.preview(pending)
-                        cv2.waitKey(500)
                         print(f'  [?] Capture #{node._save_index} ready. S to save, D to discard.')
                 else:
                     # Second S — confirm save
@@ -204,14 +226,15 @@ def main(args=None):
                 break
 
     except Exception as e:
-        node.get_logger().error(f"Error: {e}")
-        
+        node.get_logger().error(f'Error: {e}')
+
     finally:
         if pending is not None:
             node.close_preview()
         termios.tcsetattr(sys.stdin, termios.TCSADRAIN, settings)
         node.destroy_node()
         rclpy.shutdown()
+
 
 if __name__ == '__main__':
     main()
