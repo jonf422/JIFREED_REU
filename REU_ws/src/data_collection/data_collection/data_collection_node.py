@@ -93,7 +93,7 @@ class dataCollectionNode(Node):
         cv2.imshow('Arducam', frame)
         cv2.waitKey(1)
 
-    # --- Capture: snapshot all currently displayed frames ---
+    #Capture: snapshot all currently displayed frames ---
 
     def capture(self):
         """Snapshots the latest cached frame from each stream simultaneously."""
@@ -112,14 +112,13 @@ class dataCollectionNode(Node):
             'arducam':  self._latest_arducam.copy(),
         }
 
-    # --- Save ---
-
+    #save data frames
     def save_all(self, frames: dict):
         idx = self._save_index
 
         paths = {
             'rs_color': os.path.join(REALSENSE_RGB_DIR,   f'realsense_color_{idx}.jpg'),
-            'rs_depth': os.path.join(REALSENSE_DEPTH_DIR, f'realsense_depth_{idx}.png'),  # PNG preserves 16-bit depth
+            'rs_depth': os.path.join(REALSENSE_DEPTH_DIR, f'realsense_depth_{idx}.png'), 
             'arducam':  os.path.join(ARDUCAM_RGB_DIR,     f'arducam_color_{idx}.jpg'),
         }
 
