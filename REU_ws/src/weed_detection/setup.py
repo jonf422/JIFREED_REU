@@ -24,11 +24,12 @@ setup(
     },
     entry_points={
         'console_scripts': [
-            "realsense_node = weed_detection.realsense_node:main",
-            "realsense_display_node = weed_detection.realsense_display_node:main",
-            "realsense_depth_display_node = weed_detection.realsense_depth_display_node:main",
-            "arducam_node = weed_detection.arducam_node:main",
-            "arducam_display_node = weed_detection.arducam_display_node:main"
+            "realsense_node = weed_detection.vision.realsense_node:main",
+            "realsense_display_node = weed_detection.display.realsense_display_node:main",
+            "realsense_depth_display_node = weed_detection.display.realsense_depth_display_node:main",
+            "arducam_node = weed_detection.vision.arducam_node:main",
+            "arducam_display_node = weed_detection.display.arducam_display_node:main",
+            "combined_display_node = weed_detection.display.combined_display_node:main"
         ],
     },
 )
