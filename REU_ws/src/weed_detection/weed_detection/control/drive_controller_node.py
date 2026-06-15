@@ -52,7 +52,7 @@ class DriveControllerNode(Node):
         self.create_subscription(Twist, '/cmd_vel', self.cmd_vel_cb, 10)
         
         #Watchdog to monitor for silent commands
-        self._motors_stopped = True
+        self._motors_stopped = False
         self._last_msg_t = time.time() - 1.0
         self.create_timer(.1, self.safety_check)
 
