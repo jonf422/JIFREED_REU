@@ -31,9 +31,9 @@ class DriveControllerNode(Node):
         # Kinematic parameters
         self.declare_parameter('half_track_width', 0.178)
         self.declare_parameter('speed_to_mps',     0.02)
-        self.declare_parameter('max_actuator',     30.0)
+        self.declare_parameter('max_actuator',     100.0)
 
-        self._L            = self.get_parameter('half_track_width').value
+        self._L = self.get_parameter('half_track_width').value
         self._mps_per_motor_unit = self.get_parameter('speed_to_mps').value
         self._max_actuator = self.get_parameter('max_actuator').value
 
@@ -78,11 +78,11 @@ class DriveControllerNode(Node):
             left_cmd *= self._max_actuator / peak
             right_cmd *= self._max_actuator / peak
 
-        # temporary debug — remove before field use
+        #debug logger
         self.get_logger().info(f'v={v:.3f} w={w:.3f} | L={left_cmd:.1f} R={right_cmd:.1f}')
 
         #Send command to Sabertooth Driver
-        self._motors.updateMotorSpeed(30, 30)
+        self._motors.updateMotorSpeed(left_cmd, right_cmd)
 
     #Stop motors if velocity commands time out
     def safety_check(self) -> None:
