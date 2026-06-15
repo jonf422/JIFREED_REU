@@ -29,7 +29,8 @@ setup(
             "realsense_depth_display_node = weed_detection.display.realsense_depth_display_node:main",
             "arducam_node = weed_detection.vision.arducam_node:main",
             "arducam_display_node = weed_detection.display.arducam_display_node:main",
-            "combined_display_node = weed_detection.display.combined_display_node:main"
+            "combined_display_node = weed_detection.display.combined_display_node:main",
+            "drive_controller_node = weed_detection.control.drive_controller_node:main"
         ],
     },
 )
