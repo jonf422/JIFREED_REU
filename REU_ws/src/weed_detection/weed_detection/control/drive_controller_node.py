@@ -53,11 +53,12 @@ class DriveControllerNode(Node):
         
         #Watchdog to monitor for silent commands
         self._motors_stopped = True
-        self._last_msg_t = time.time()
+        self._last_msg_t = time.time() - 1.0
         self.create_timer(.1, self.safety_check)
 
     def cmd_vel_cb(self, msg) -> None:
         self._last_msg_t = time.time()
+        self._motors_stopped = False
 
         #recieve Twist cmd
         v = msg.linear.x #m/s forward
@@ -77,8 +78,10 @@ class DriveControllerNode(Node):
             left_cmd *= self._max_actuator / peak
             right_cmd *= self._max_actuator / peak
 
+        # temporary debug — remove before field use
+        self.get_logger().info(f'v={v:.3f} w={w:.3f} | L={left_cmd:.1f} R={right_cmd:.1f}')
+
         #Send command to Sabertooth Driver
-        self._motors_stopped = False
         self._motors.updateMotorSpeed(left_cmd, right_cmd)
 
     #Stop motors if velocity commands time out
