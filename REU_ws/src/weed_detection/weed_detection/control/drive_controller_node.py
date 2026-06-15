@@ -82,7 +82,7 @@ class DriveControllerNode(Node):
         self.get_logger().info(f'v={v:.3f} w={w:.3f} | L={left_cmd:.1f} R={right_cmd:.1f}')
 
         #Send command to Sabertooth Driver
-        self._motors.updateMotorSpeed(left_cmd, right_cmd)
+        self._motors.updateMotorSpeed(30, 30)
 
     #Stop motors if velocity commands time out
     def safety_check(self) -> None:
