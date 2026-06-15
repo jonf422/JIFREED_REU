@@ -88,7 +88,7 @@ class DriveControllerNode(Node):
     def safety_check(self) -> None:
         if time.time() - self._last_msg_t > .5:
             if not self._motors_stopped:
-                self._motors.all_motors_off()
+                self._motors.updateMotorSpeed(0,0)
                 self._motors_stopped = True
                 self.get_logger().warning('/cmd_vel timed out, stopping motors')
 
