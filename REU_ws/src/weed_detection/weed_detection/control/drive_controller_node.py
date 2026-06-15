@@ -84,9 +84,10 @@ class DriveControllerNode(Node):
     #Stop motors if velocity commands time out
     def safety_check(self) -> None:
         if time.time() - self._last_msg_t > .5:
-            self._motors.updateMotorSpeed(0,0)
-            self._motors_stopped = True
-            self.get_logger().warning('/cmd_vel timed out, stopping motors')
+            if not self._motors_stopped:
+                self._motors.updateMotorSpeed(0,0)
+                self._motors_stopped = True
+                self.get_logger().warning('/cmd_vel timed out, stopping motors')
 
     def destroy_node(self):
         self._motors.updateMotorSpeed(0,0)
