@@ -30,7 +30,8 @@ setup(
             "arducam_node = weed_detection.vision.arducam_node:main",
             "arducam_display_node = weed_detection.display.arducam_display_node:main",
             "combined_display_node = weed_detection.display.combined_display_node:main",
-            "drive_controller_node = weed_detection.control.drive_controller_node:main"
+            "drive_controller_node = weed_detection.control.drive_controller_node:main",
+            "realsense_multistream_node = weed_detection.vision.realsense_multistream_test_node:main"
         ],
     },
 )
