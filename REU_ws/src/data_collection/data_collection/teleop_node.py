@@ -22,8 +22,8 @@ import tty
 import atexit
 
 # Import your custom modules from this package
-from simple_teleop import sabertooth as st
-from simple_teleop.PID import PID
+import sabertooth as st
+from PID import PID
 
 # Terminal Arrow Key Escape Sequences
 UP = '\x1b[A'
