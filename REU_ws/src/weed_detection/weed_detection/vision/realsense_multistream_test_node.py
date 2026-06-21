@@ -121,57 +121,85 @@ class RealSenseNode(Node):
     # -------------------------------------------------------------------------
     # Realsense pipeline callbacks
     # -------------------------------------------------------------------------
+   # -------------------------------------------------------------------------
+    # RealSense pipeline callback
+    # -------------------------------------------------------------------------
     def pipeline_cb(self, frame) -> None:
-        self.get_logger().info(f"cb: frameset={frame.is_frameset()} motion={frame.is_motion_frame()}")
-        if frame.is_frameset():
-            if self._latest_gyro is None or self._latest_accel is None:
-                return
+        try:
+            # ---- Composite color+depth frameset (~30 Hz) --------------------
+            if frame.is_frameset():
+                fs = frame.as_frameset()
+                aligned = self._align.process(fs)
+                color_frame = aligned.get_color_frame()
+                depth_frame = aligned.get_depth_frame()
+                if not color_frame or not depth_frame:
+                    self.get_logger().warning('frameset missing color or depth')
+                    return
 
-            aligned = self._align.process(frame)
-            color_frame = aligned.get_color_frame()
-            depth_frame = aligned.get_depth_frame()
+                stamp = self.get_clock().now().to_msg()
 
-            stamp = self.get_clock().now().to_msg()
+                color_image = np.asanyarray(color_frame.get_data())
+                color_msg = self._bridge.cv2_to_imgmsg(color_image, encoding='bgr8')
+                color_msg.header.stamp = stamp
+                color_msg.header.frame_id = 'camera_link'
 
-            color_image = np.asanyarray(color_frame.get_data())
-            color_msg   = self._bridge.cv2_to_imgmsg(color_image, encoding='bgr8')
-            color_msg.header.stamp = stamp
-            color_msg.header.frame_id = 'camera_link'
+                depth_image = np.asanyarray(depth_frame.get_data())
+                depth_msg = self._bridge.cv2_to_imgmsg(depth_image, encoding='16UC1')
+                depth_msg.header.stamp = stamp
+                depth_msg.header.frame_id = 'camera_link'
 
-            depth_image = np.asanyarray(depth_frame.get_data())
-            depth_msg   = self._bridge.cv2_to_imgmsg(depth_image, encoding='16UC1')
-            depth_msg.header.stamp    = stamp
-            depth_msg.header.frame_id = 'camera_link'
+                self._camera_info.header.stamp = stamp
 
-            imu_msg = Imu()
-            imu_msg.header.stamp = stamp
-            imu_msg.header.frame_id = 'camera_link'
-            imu_msg.angular_velocity.x = self._latest_gyro.x
-            imu_msg.angular_velocity.y = self._latest_gyro.y
-            imu_msg.angular_velocity.z = self._latest_gyro.z
-            imu_msg.linear_acceleration.x = self._latest_accel.x
-            imu_msg.linear_acceleration.y = self._latest_accel.y
-            imu_msg.linear_acceleration.z = self._latest_accel.z
-            imu_msg.orientation_covariance[0] = -1.0
+                self._color_pub.publish(color_msg)
+                self._depth_pub.publish(depth_msg)
+                self._info_pub.publish(self._camera_info)
 
-            self._camera_info.header.stamp = stamp
+                # diagnostic: prove publishing happens independent of subscribers
+                self._frame_count = getattr(self, '_frame_count', 0) + 1
+                if self._frame_count % 30 == 0:
+                    self.get_logger().info(f'published {self._frame_count} framesets')
 
-            self._color_pub.publish(color_msg)
-            self._depth_pub.publish(depth_msg)
-            self._imu_pub.publish(imu_msg)
-            self._info_pub.publish(self._camera_info)
+            # ---- Standalone motion frame (gyro ~200 Hz, accel ~100 Hz) ------
+            elif frame.is_motion_frame():
+                mf = frame.as_motion_frame()
+                stream = mf.get_profile().stream_type()
+                if stream == rs.stream.gyro:
+                    self._latest_gyro = mf.get_motion_data()
+                    # Publish IMU at gyro rate, pairing with most recent accel.
+                    if self._latest_accel is not None:
+                        self._publish_imu()
+                elif stream == rs.stream.accel:
+                    self._latest_accel = mf.get_motion_data()
+                else:
+                    self.get_logger().warning('unexpected motion stream type')
 
-        elif frame.is_motion_frame():
-            stream = frame.get_profile().stream_type()
-            if stream == rs.stream.gyro:
-                self._latest_gyro = frame.as_motion_frame().get_motion_data()
-            elif stream == rs.stream.accel:
-                self._latest_accel = frame.as_motion_frame().get_motion_data()
             else:
-                self.get_logger().warning('Unexpected motion stream type')
-        else:
-            self.get_logger().warning('Unexpected frame type, skipping')
+                self.get_logger().warning('unexpected frame type, skipping')
 
+        except Exception as e:
+            # pyrealsense2 swallows exceptions raised on its callback thread,
+            # so without this the node would publish nothing and stay silent.
+            self.get_logger().error(f'pipeline_cb error: {e}')
+
+    # -------------------------------------------------------------------------
+
+    def _publish_imu(self) -> None:
+        imu_msg = Imu()
+        imu_msg.header.stamp = self.get_clock().now().to_msg()
+        imu_msg.header.frame_id = 'camera_link'
+        imu_msg.angular_velocity.x = self._latest_gyro.x
+        imu_msg.angular_velocity.y = self._latest_gyro.y
+        imu_msg.angular_velocity.z = self._latest_gyro.z
+        imu_msg.linear_acceleration.x = self._latest_accel.x
+        imu_msg.linear_acceleration.y = self._latest_accel.y
+        imu_msg.linear_acceleration.z = self._latest_accel.z
+        # No on-board orientation fusion from raw gyro/accel; mark unavailable.
+        imu_msg.orientation_covariance[0] = -1.0
+        self._imu_pub.publish(imu_msg)
+
+        self._imu_count = getattr(self, '_imu_count', 0) + 1
+        if self._imu_count % 200 == 0:
+            self.get_logger().info(f'published {self._imu_count} imu msgs')
     # -----------------------------------------------------------------------
 
     def destroy_node(self) -> None:
