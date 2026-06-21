@@ -65,22 +65,18 @@ class RealSenseNode(Node):
         self._bridge = CvBridge()
 
     
-        # Start RealSense Image pipeline
-        self._img_pipeline = rs.pipeline()
-        img_cfg = rs.config()
-        img_cfg.enable_stream(rs.stream.color, w, h, rs.format.bgr8, fps)
-        img_cfg.enable_stream(rs.stream.depth, w, h, rs.format.z16, fps)
-        cam_profile = self._img_pipeline.start(img_cfg, self.img_cb)
+        # Start RealSense pipeline
+        self._pipeline = rs.pipeline()
+        cfg = rs.config()
+        cfg.enable_stream(rs.stream.color, w, h, rs.format.bgr8, fps)
+        cfg.enable_stream(rs.stream.depth, w, h, rs.format.z16, fps)
+        cfg.enable_stream(rs.stream.accel, rs.format.motion_xyz32f, 63)
+        cfg.enable_stream(rs.stream.gyro, rs.format.motion_xyz32f, 200)
+        cam_profile = self._pipeline.start(cfg, self.pipeline_cb)
 
         # Align depth to color frame
         self._align = rs.align(rs.stream.color)
-        
-        # Start Realsense IMU pipeline
-        self._imu_pipeline = rs.pipeline()
-        imu_cfg = rs.config()
-        imu_cfg.enable_stream(rs.stream.accel, rs.format.motion_xyz32f, 63)
-        imu_cfg.enable_stream(rs.stream.gyro, rs.format.motion_xyz32f, 200)
-        self._imu_pipeline.start(imu_cfg, self.imu_cb)
+    
 
         # Extract and cache intrinsics for CameraInfo
         intr = (cam_profile
@@ -97,8 +93,6 @@ class RealSenseNode(Node):
             f"dist={intr.coeffs}"
         )
 
-        # Capture loop at the stream's native rate
-        self.create_timer(1.0 / fps, self.data_pub)
 
     # -----------------------------------------------------------------------
 
@@ -127,48 +121,27 @@ class RealSenseNode(Node):
     # -------------------------------------------------------------------------
     # Realsense pipeline callbacks
     # -------------------------------------------------------------------------
-    def img_cb(self, frame) -> None:
+    def pipeline_cb(self, frame) -> None:
         if frame.is_frameset():
+            if self._latest_gyro is None or self._latest_accel is None:
+                return
+
             aligned = self._align.process(frame)
             color_frame = aligned.get_color_frame()
             depth_frame = aligned.get_depth_frame()
 
             stamp = self.get_clock().now().to_msg()
 
-            #build rgb msg
             color_image = np.asanyarray(color_frame.get_data())
             color_msg   = self._bridge.cv2_to_imgmsg(color_image, encoding='bgr8')
             color_msg.header.stamp = stamp
             color_msg.header.frame_id = 'camera_link'
-            self._latest_rgb = color_msg
 
-            #build depth msg
             depth_image = np.asanyarray(depth_frame.get_data())
             depth_msg   = self._bridge.cv2_to_imgmsg(depth_image, encoding='16UC1')
             depth_msg.header.stamp    = stamp
             depth_msg.header.frame_id = 'camera_link'
-            self._latest_depth = depth_msg
-        else:
-            self.get_logger().warning('RGB+Depth not frameset, skipping')
 
-    def imu_cb(self, frame) -> None:
-        stream = frame.get_profile().stream_type()
-        if stream == rs.stream.gyro:
-            self._latest_gyro = frame.as_motion_frame().get_motion_data()
-        elif stream == rs.stream.accel:
-            self._latest_accel = frame.as_motion_frame().get_motion_data()
-        else:
-            self.get_logger().warning('Unexpected data type to IMU pipeline')
-    
-
-    # -------------------------------------------------------------------------
-    # Realsense data publisher
-    # -------------------------------------------------------------------------
-    def data_pub(self) -> None:
-        if self._latest_rgb and self._latest_depth and self._latest_gyro and self._latest_accel:
-
-            stamp = self.get_clock().now().to_msg()
-            #build imu msg
             imu_msg = Imu()
             imu_msg.header.stamp = stamp
             imu_msg.header.frame_id = 'camera_link'
@@ -179,22 +152,31 @@ class RealSenseNode(Node):
             imu_msg.linear_acceleration.y = self._latest_accel.y
             imu_msg.linear_acceleration.z = self._latest_accel.z
             imu_msg.orientation_covariance[0] = -1.0
-            #camera info header
+
             self._camera_info.header.stamp = stamp
 
-            #publish
-            self._color_pub.publish(self._latest_rgb)
-            self._depth_pub.publish(self._latest_depth)
+            self._color_pub.publish(color_msg)
+            self._depth_pub.publish(depth_msg)
             self._imu_pub.publish(imu_msg)
             self._info_pub.publish(self._camera_info)
+
+        elif frame.is_motion_frame():
+            stream = frame.get_profile().stream_type()
+            if stream == rs.stream.gyro:
+                self._latest_gyro = frame.as_motion_frame().get_motion_data()
+            elif stream == rs.stream.accel:
+                self._latest_accel = frame.as_motion_frame().get_motion_data()
+            else:
+                self.get_logger().warning('Unexpected motion stream type')
+        else:
+            self.get_logger().warning('Unexpected frame type, skipping')
 
     # -----------------------------------------------------------------------
 
     def destroy_node(self) -> None:
         self.get_logger().info("Stopping RealSense pipeline.")
         try:
-            self._img_pipeline.stop()
-            self._imu_pipeline.stop()
+            self._pipeline.stop()
         except Exception:
             pass
         super().destroy_node()
