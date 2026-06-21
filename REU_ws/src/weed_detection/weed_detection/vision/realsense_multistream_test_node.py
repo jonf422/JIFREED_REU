@@ -122,6 +122,7 @@ class RealSenseNode(Node):
     # Realsense pipeline callbacks
     # -------------------------------------------------------------------------
     def pipeline_cb(self, frame) -> None:
+        self.get_logger().info(f"cb: frameset={frame.is_frameset()} motion={frame.is_motion_frame()}")
         if frame.is_frameset():
             if self._latest_gyro is None or self._latest_accel is None:
                 return
