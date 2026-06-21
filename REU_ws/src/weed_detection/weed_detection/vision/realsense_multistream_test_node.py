@@ -70,7 +70,7 @@ class RealSenseNode(Node):
         cfg = rs.config()
         cfg.enable_stream(rs.stream.color, w, h, rs.format.bgr8, fps)
         cfg.enable_stream(rs.stream.depth, w, h, rs.format.z16, fps)
-        cfg.enable_stream(rs.stream.accel, rs.format.motion_xyz32f, 63)
+        cfg.enable_stream(rs.stream.accel, rs.format.motion_xyz32f, 100)
         cfg.enable_stream(rs.stream.gyro, rs.format.motion_xyz32f, 200)
         cam_profile = self._pipeline.start(cfg, self.pipeline_cb)
 
