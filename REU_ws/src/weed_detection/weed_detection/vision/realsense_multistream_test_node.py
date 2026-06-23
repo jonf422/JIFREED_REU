@@ -187,14 +187,30 @@ class RealSenseNode(Node):
         imu_msg = Imu()
         imu_msg.header.stamp = self.get_clock().now().to_msg()
         imu_msg.header.frame_id = 'camera_link'
+
         imu_msg.angular_velocity.x = self._latest_gyro.x
         imu_msg.angular_velocity.y = self._latest_gyro.y
         imu_msg.angular_velocity.z = self._latest_gyro.z
+
         imu_msg.linear_acceleration.x = self._latest_accel.x
         imu_msg.linear_acceleration.y = self._latest_accel.y
         imu_msg.linear_acceleration.z = self._latest_accel.z
+
         # No on-board orientation fusion from raw gyro/accel; mark unavailable.
         imu_msg.orientation_covariance[0] = -1.0
+
+        # Diagonal noise covariances. 
+        imu_msg.angular_velocity_covariance = [
+            1.5e-5, 0.0,    0.0,
+            0.0,    2.3e-5, 0.0,
+            0.0,    0.0,    1.3e-5,
+        ]
+        imu_msg.linear_acceleration_covariance = [
+            1.9e-4, 0.0,    0.0,
+            0.0,    1.8e-4, 0.0,
+            0.0,    0.0,    2.0e-4,
+        ]
+
         self._imu_pub.publish(imu_msg)
 
         self._imu_count = getattr(self, '_imu_count', 0) + 1
