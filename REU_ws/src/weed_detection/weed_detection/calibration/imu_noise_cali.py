@@ -17,17 +17,26 @@ matter — variance captures the noise, which is what the EKF needs.
 """
 import rclpy
 from rclpy.node import Node
+from rclpy.qos import QoSProfile, ReliabilityPolicy, HistoryPolicy
 from sensor_msgs.msg import Imu
 import numpy as np
+
+# Must match realsense_node.py's SENSOR_QOS (BEST_EFFORT) or the
+# subscription will silently never connect to the publisher.
+SENSOR_QOS = QoSProfile(
+    reliability=ReliabilityPolicy.BEST_EFFORT,
+    history=HistoryPolicy.KEEP_LAST,
+    depth=50,
+)
 
 
 class ImuNoiseMeasurer(Node):
     def __init__(self, target_samples=1000):
-        super().__init__('imu_noise_cali')
+        super().__init__('imu_noise_measurer')
         self.target = target_samples
         self.gyro = []   # rows of [x, y, z]
         self.accel = []
-        self.create_subscription(Imu, '/imu/data', self.cb, 50)
+        self.create_subscription(Imu, '/imu/data', self.cb, SENSOR_QOS)
         self.get_logger().info(
             f'Collecting {target_samples} samples — keep the robot PERFECTLY STILL...'
         )
