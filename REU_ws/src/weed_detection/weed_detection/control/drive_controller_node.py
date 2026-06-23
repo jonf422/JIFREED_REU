@@ -13,7 +13,7 @@ Topic subscriptions:
 Parameters:
     half_track_width    (float, default 0.178)  half distance between wheels in meters
     mps_per_actuator_unit (float, default 0.02) m/s per Sabertooth actuator unit
-    max_actuator        (float, default 30.0)   maximum Sabertooth command value
+    max_actuator        (float, default 100.0)   maximum Sabertooth command value
 '''
 import rclpy
 from rclpy.node import Node
