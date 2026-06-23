@@ -24,15 +24,29 @@ setup(
     },
     entry_points={
         'console_scripts': [
+
+            #Vision
+            "realsense_multistream_node = weed_detection.vision.realsense_multistream_test_node:main",
+            "arducam_node = weed_detection.vision.arducam_node:main",
+
             "realsense_node = weed_detection.vision.realsense_node:main",
+
+            #Control
+            "drive_controller_node = weed_detection.control.drive_controller_node:main",
+
+            #Navigation
+            "wheel_odom_node = weed_detection.navigation.wheel_odom_node:main",
+
+            #Display
+            "combined_display_node = weed_detection.display.combined_display_node:main",
+
+            "arducam_display_node = weed_detection.display.arducam_display_node:main",
             "realsense_display_node = weed_detection.display.realsense_display_node:main",
             "realsense_depth_display_node = weed_detection.display.realsense_depth_display_node:main",
-            "arducam_node = weed_detection.vision.arducam_node:main",
-            "arducam_display_node = weed_detection.display.arducam_display_node:main",
-            "combined_display_node = weed_detection.display.combined_display_node:main",
-            "drive_controller_node = weed_detection.control.drive_controller_node:main",
-            "realsense_multistream_node = weed_detection.vision.realsense_multistream_test_node:main",
-            "wheel_odom_node = weed_detection.navigation.wheel_odom_node:main"
+
+            #Calibration
+            "imu_noise_cali = weed_detection.calibration.imu_noise_cali:main" 
+            
         ],
     },
 )
