@@ -1,7 +1,7 @@
 '''
 Jonathan Freed
 
-weedbot_bringup.launch.py
+weedbot.launch.py
 
 Robot Launch File
 
