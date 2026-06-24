@@ -1,7 +1,7 @@
 '''
 Jonathan Freed
 
-weedbot_launch.py
+tf_tree.launch.py
 
 TF Tree Launch file
 
@@ -14,6 +14,10 @@ def generate_launch_description():
 
 
         # --- Base Link -> Sensors (Static) ------------ 
+        '''format: 
+                (x,y,z),
+                (yaw,pitch,roll),
+                parent_frame, child_frame'''
         Node(
             package='tf2_ros',
             executable='static_transform_publisher',
