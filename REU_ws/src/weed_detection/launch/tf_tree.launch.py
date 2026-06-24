@@ -12,12 +12,12 @@ from launch_ros.actions import Node
 def generate_launch_description():
     return LaunchDescription([
 
-
         # --- Base Link -> Sensors (Static) ------------ 
-        '''format: 
-                (x,y,z),
-                (yaw,pitch,roll),
-                parent_frame, child_frame'''
+        
+        #argument format: 
+        #        (x,y,z),
+        #        (yaw,pitch,roll),
+        #        parent_frame, child_frame     
         Node(
             package='tf2_ros',
             executable='static_transform_publisher',
