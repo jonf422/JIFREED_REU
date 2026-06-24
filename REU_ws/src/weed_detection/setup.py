@@ -1,4 +1,6 @@
 from setuptools import find_packages, setup
+import os
+from glob import glob
 
 package_name = 'weed_detection'
 
@@ -10,6 +12,7 @@ setup(
         ('share/ament_index/resource_index/packages',
             ['resource/' + package_name]),
         ('share/' + package_name, ['package.xml']),
+        (os.path.join('share', package_name, 'launch'), glob(os.path.join('launch', 'launch/*.launch.py')))
     ],
     install_requires=['setuptools'],
     zip_safe=True,
@@ -26,7 +29,7 @@ setup(
         'console_scripts': [
 
             #Vision
-            "realsense_multistream_node = weed_detection.vision.realsense_multistream_test_node:main",
+            "realsense_multistream_node = weed_detection.vision.realsense_multistream_node:main",
             "arducam_node = weed_detection.vision.arducam_node:main",
 
             "realsense_node = weed_detection.vision.realsense_node:main",
