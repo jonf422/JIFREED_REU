@@ -24,7 +24,7 @@ from nav_msgs.msg import Odometry
 import numpy as np
 
 def yaw_to_quaternion(yaw: float) -> Quaternion:
-    """2D yaw -> quaternion (only z/w are nonzero for planar rotation)."""
+    #2D yaw -> quaternion (only z/w are nonzero for planar rotation).
     q = Quaternion()
     q.x = 0.0
     q.y = 0.0
