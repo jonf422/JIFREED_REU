@@ -118,10 +118,8 @@ class RealSenseNode(Node):
         ]
         return ci
 
+   
     # -------------------------------------------------------------------------
-    # Realsense pipeline callbacks
-    # -------------------------------------------------------------------------
-   # -------------------------------------------------------------------------
     # RealSense pipeline callback
     # -------------------------------------------------------------------------
     def pipeline_cb(self, frame) -> None:
@@ -155,9 +153,9 @@ class RealSenseNode(Node):
                 self._info_pub.publish(self._camera_info)
 
                 # diagnostic: prove publishing happens independent of subscribers
-                self._frame_count = getattr(self, '_frame_count', 0) + 1
-                if self._frame_count % 30 == 0:
-                    self.get_logger().info(f'published {self._frame_count} framesets')
+                #self._frame_count = getattr(self, '_frame_count', 0) + 1
+                #if self._frame_count % 30 == 0:
+                    #self.get_logger().info(f'published {self._frame_count} framesets')
 
             # ---- Standalone motion frame (gyro ~200 Hz, accel ~100 Hz) ------
             elif frame.is_motion_frame():
@@ -186,7 +184,7 @@ class RealSenseNode(Node):
     def _publish_imu(self) -> None:
         imu_msg = Imu()
         imu_msg.header.stamp = self.get_clock().now().to_msg()
-        imu_msg.header.frame_id = 'camera_link'
+        imu_msg.header.frame_id = 'realsense_optical'
 
         imu_msg.angular_velocity.x = self._latest_gyro.x
         imu_msg.angular_velocity.y = self._latest_gyro.y
@@ -213,9 +211,9 @@ class RealSenseNode(Node):
 
         self._imu_pub.publish(imu_msg)
 
-        self._imu_count = getattr(self, '_imu_count', 0) + 1
-        if self._imu_count % 200 == 0:
-            self.get_logger().info(f'published {self._imu_count} imu msgs')
+        #self._imu_count = getattr(self, '_imu_count', 0) + 1
+        #if self._imu_count % 200 == 0:
+            #self.get_logger().info(f'published {self._imu_count} imu msgs')
     # -----------------------------------------------------------------------
 
     def destroy_node(self) -> None:
