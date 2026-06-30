@@ -27,6 +27,12 @@ def generate_launch_description():
                          'base_link', 'realsense_link'],
         ),
         Node(
+            package='tf2_ros', executable='static_transform_publisher',
+            name='realsense_to_optical',
+            arguments=['0','0','0', '-1.5708','0','-1.5708',
+                    'realsense_link', 'realsense_optical'],
+        ),
+        Node(
             package='tf2_ros',
             executable='static_transform_publisher',
             name='base_to_arducam',

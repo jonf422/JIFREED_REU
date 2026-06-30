@@ -4,10 +4,10 @@
 
 #----- Local filter (IMU + Wheel Odometry) -> odom frame -------------------------
 ekf_filter_node_odom:
-  ros_parameters:
+  ros__parameters:
 
     frequency: 30.0 #frequency in hz of position estimate output
-    sensor timeout: 0.1 #period in seconds in which a sensor will be considered to timeout, carry out predict cycle
+    sensor_timeout: 0.1 #period in seconds in which a sensor will be considered to timeout, carry out predict cycle
     two_d_mode: true 
     transform_time_offset: 0.0
     transform_timeout: 0.0
@@ -30,7 +30,15 @@ ekf_filter_node_odom:
                   false, false, true,
                   false, false, false]
     odom0_queue_size: 10
-    
+
+    #imu publishes 
+    imu0: /imu/data
+    imu0_config: [false,  false,  false,
+                  false, false, false,
+                  false, false, false,
+                  false, false, true,
+                  false, false, false]
+    imu0_queue_size: 10
     
 
 
