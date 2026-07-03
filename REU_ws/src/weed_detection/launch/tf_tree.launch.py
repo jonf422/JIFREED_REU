@@ -44,7 +44,7 @@ def generate_launch_description():
             package='tf2_ros',
             executable='static_transform_publisher',
             name='base_to_gps',
-            arguments = ['0', '0', '.42',
+            arguments = ['.1475', '0', '.56',
                          '0', '0', '0',
                          'base_link', 'gps_link'],
         ),
