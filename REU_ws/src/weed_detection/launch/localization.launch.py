@@ -1,17 +1,22 @@
 '''
 Jonathan Freed
 
-tf_tree_launch.py
+localization.launch.py
 
-TF Tree Launch file
+TF Tree + Robot Localization Launch file
 
 '''
 from launch import LaunchDescription
 from launch_ros.actions import Node
+import os
+from ament_index_python.packages import get_package_share_directory
 
 def generate_launch_description():
     return LaunchDescription([
 
+    #---------------------------------------------------
+    #Transform Tree
+    #---------------------------------------------------
         # --- Base Link -> Sensors (Static) ------------ 
         
         #argument format: 
@@ -56,4 +61,38 @@ def generate_launch_description():
                          '0', '0', '0',
                          'base_link', 'drill_link'],
         ),
+
+    #---------------------------------------------------
+    #Robot Localization
+    #---------------------------------------------------
+    Node(
+        package='robot_localization',
+        executable='ekf_node',
+        name='ekf_filter_node_odom',
+        parameters=[os.path.join(get_package_share_directory('weed_detection'), 'config', 'ekf.yaml')],
+        remappings=[('odometry/filtered', 'odometry/local')],
+    ),
+    
+    '''
+    #Uncomment when robot outside
+    Node(
+        package='robot_localization',
+        executable='ekf_node',
+        name='ekf_filter_node_map',
+        parameters=[os.path.join(get_package_share_directory('weed_detection'), 'config', 'ekf.yaml')],
+        remappings=[('odometry/filtered', 'odometry/global')],
+    ),
+    
+    Node(
+        package='robot_localization',
+        executable='navsat_transform_node',
+        name='navsat_transform',
+        parameters=os.path.join(get_package_share_directory('weed_detection'), 'config', 'ekf.yaml'),
+        remappings=[('gps/fix', '/fix'),
+                    ('imu', '/imu/data'),
+                    ('odometry/filtered', 'odometry/global'),
+                    ],
+        ),
+        '''
+
     ])
