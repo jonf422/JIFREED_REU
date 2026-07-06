@@ -19,9 +19,16 @@ import rclpy
 from rclpy.node import Node
 from geometry_msgs.msg import Twist
 from weed_detection.utils.sabertooth import SaberToothMotorDriver
+from rclpy.qos import QoSProfile, ReliabilityPolicy, HistoryPolicy
 
 import atexit
 import time
+
+QOS_PROFILE = QoSProfile(
+    reliability=ReliabilityPolicy.BEST_EFFORT,
+    history=HistoryPolicy.KEEP_LAST,
+    depth=2,
+)
 
 
 class DriveControllerNode(Node):
@@ -49,7 +56,7 @@ class DriveControllerNode(Node):
         atexit.register(self._motors.all_motors_off)
 
         #Subscription to Nav2 velocity commands
-        self.create_subscription(Twist, '/cmd_vel', self.cmd_vel_cb, 10)
+        self.create_subscription(Twist, '/cmd_vel', self.cmd_vel_cb, QOS_PROFILE)
         
         #Watchdog to monitor for silent commands
         self._motors_stopped = False
