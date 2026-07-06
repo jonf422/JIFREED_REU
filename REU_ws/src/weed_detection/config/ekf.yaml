@@ -94,10 +94,10 @@ ekf_filter_node_map:
     ros__parameters:
       frequency: 30.0
       delay: 3.0
-      magnetic_declination_radians: 0.0   # CHANGED: unused without a magnetometer
-      yaw_offset: 0.0                      # CHANGED: unused without a magnetometer
-      zero_altitude: true                 # CHANGED: 2D robot
-      broadcast_utm_transform: false      # CHANGED: not needed for v1
-      publish_filtered_gps: true          # handy for debugging
-      use_odometry_yaw: true              # CHANGED: heading from motion, not compass
+      magnetic_declination_radians: 0.0
+      yaw_offset: 0.0
+      zero_altitude: true
+      broadcast_utm_transform: false
+      publish_filtered_gps: true
+      use_odometry_yaw: true
       wait_for_datum: false
