@@ -36,6 +36,7 @@ setup(
 
             #Control
             "drive_controller_node = weed_detection.control.drive_controller_node:main",
+            "tool_controller_node = weed_detection.control.tool_controller_node:main",
 
             #Navigation
             "wheel_odom_node = weed_detection.navigation.wheel_odom_node:main",

@@ -53,7 +53,7 @@ def generate_launch_description():
             executable='nmea_serial_driver',
             name='nmea_serial_driver',
             parameters=[{
-                'port': '/dev/ttyUSB0',
+                'port': '/dev/rtk_gps',
                 'baud': 115200,
             }],
         ),
@@ -62,6 +62,11 @@ def generate_launch_description():
             package='weed_detection',
             executable='drive_controller_node',
             name='drive_controller_node',
+        ),
+        Node(
+            package='weed_detection',
+            executable='tool_controller_node',
+            name='tool_controller_node',
         ),
 
     ])
