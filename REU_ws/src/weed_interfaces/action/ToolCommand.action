@@ -1,0 +1,9 @@
+# Goal
+string command      # "home" or "drill"
+---
+# Result
+int32 return_code   # 0/1 from firmware, or negative for node-level errors
+string message
+---
+# Feedback
+string status       # firmware chatter, e.g. "ESTOP"
