@@ -39,7 +39,7 @@ class MissionManagerNode(Node):
             if self.action_done:
                 if self.action_code == 0:
                     self.transition(State.DRILLING)
-                    self.send_tool_cmd('drilling')
+                    self.send_tool_cmd('drill')
                 else:
                     self.transition(State.FAILED)
 
