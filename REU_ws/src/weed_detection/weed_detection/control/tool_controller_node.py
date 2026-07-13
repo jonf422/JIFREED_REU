@@ -34,6 +34,11 @@ RETURN_CODES = {
 }
 VALID_COMMANDS = {"home", "drill", "stop"}
 
+TIMEOUT_PERIOD = {
+    "home": 120,
+    "drill": 60,
+                  }
+
 class toolControllerNode(Node):
     def __init__(self):
         super().__init__('tool_controller_node')
@@ -86,7 +91,7 @@ class toolControllerNode(Node):
 
         result = ToolCommand.Result()
         feedback = ToolCommand.Feedback()
-        deadline = time.time() + 120.0
+        deadline = time.time() + TIMEOUT_PERIOD[cmd]
 
         while rclpy.ok():
             #handle cancelation
