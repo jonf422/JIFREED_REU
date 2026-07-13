@@ -96,7 +96,7 @@ def generate_launch_description():
         package='robot_localization',
         executable='navsat_transform_node',
         name='navsat_transform',
-        parameters=os.path.join(get_package_share_directory('weed_detection'), 'config', 'ekf.yaml'),
+        parameters=[os.path.join(get_package_share_directory('weed_detection'), 'config', 'ekf.yaml')],
         remappings=[('gps/fix', '/fix'),
                     ('imu', '/imu/data'),
                     ('odometry/filtered', 'odometry/global'),
