@@ -27,7 +27,7 @@ class DriveCalibration(Node):
         super().__init__('drive_calibration_node')
 
         self.declare_parameter('desired_speed', 0.2)      # (m/s)
-        self.declare_parameter('desired_distance', 1.0)   # (m)
+        self.declare_parameter('desired_distance', 2.0)   # (m)
         self.declare_parameter('desired_rad', 0.5)        # (rad/s)
         self.declare_parameter('desired_turns', 1)
         self.declare_parameter('pause_seconds', 10.0)
