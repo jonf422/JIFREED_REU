@@ -38,7 +38,7 @@ class DriveControllerNode(Node):
 
         # Kinematic parameters
         self.declare_parameter('half_track_width', 0.178)
-        self.declare_parameter('speed_to_mps',     0.02)
+        self.declare_parameter('speed_to_mps',     0.01)
         self.declare_parameter('max_actuator',     100.0)
 
         self._L = self.get_parameter('half_track_width').value
