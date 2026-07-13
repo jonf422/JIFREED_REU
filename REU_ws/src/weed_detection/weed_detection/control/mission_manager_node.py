@@ -30,7 +30,7 @@ class MissionManagerNode(Node):
     # State Machine
     # -----------------------------------
     def tick(self):
-        if self.state == State.IDLE
+        if self.state == State.IDLE:
             if self.tool_client.server_is_ready():
                 self.transition(State.HOMING)
                 self.send_tool_cmd('home')
