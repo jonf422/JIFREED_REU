@@ -16,12 +16,18 @@ from launch_ros.actions import Node
 
 def generate_launch_description():
     headless_launch = LaunchConfiguration('headless_launch')
+    gps_off = LaunchConfiguration('gps_off')
 
     return LaunchDescription([
         DeclareLaunchArgument(
             'headless_launch',
             default_value='false',
             description='If true, skip display node'
+        ),
+        DeclareLaunchArgument(
+            'gps_off',
+            default_value='false',
+            description='If true, skip nmea_serial_driver'
         ),
 
         # --- Display - only when NOT headless--------
@@ -48,7 +54,7 @@ def generate_launch_description():
             executable='wheel_odom_node',
             name='wheel_odom_node',
         ),
-        Node(
+        Node( #Only if outside -> if inside set gps_off arg to true
             package='nmea_navsat_driver',
             executable='nmea_serial_driver',
             name='nmea_serial_driver',
@@ -56,6 +62,7 @@ def generate_launch_description():
                 'port': '/dev/rtk_gps',
                 'baud': 115200,
             }],
+            condition=UnlessCondition(gps_off),
         ),
         # --- Control -------------------------------
         Node(
@@ -67,6 +74,11 @@ def generate_launch_description():
             package='weed_detection',
             executable='tool_controller_node',
             name='tool_controller_node',
+        ),
+        Node(
+            package='weed_detection',
+            executable='mission_manager_node',
+            name='mission_manager_node',
         ),
 
     ])

@@ -7,13 +7,22 @@ TF Tree + Robot Localization Launch file
 
 '''
 from launch import LaunchDescription
+from launch.actions import DeclareLaunchArgument
+from launch.substitutions import LaunchConfiguration
+from launch.conditions import UnlessCondition
 from launch_ros.actions import Node
 import os
 from ament_index_python.packages import get_package_share_directory
 
 def generate_launch_description():
-    return LaunchDescription([
+    gps_off = LaunchConfiguration('gps_off')
 
+    return LaunchDescription([
+        DeclareLaunchArgument(
+            'gps_off',
+            default_value='false',
+            description='If true, skip ekf_filter_node_map, navsat_transform'
+        ),
     #---------------------------------------------------
     #Transform Tree
     #---------------------------------------------------
@@ -73,14 +82,14 @@ def generate_launch_description():
         remappings=[('odometry/filtered', 'odometry/local')],
     ),
     
-    '''
-    #Uncomment when robot outside
+    #Skip if gps_off == true
     Node(
         package='robot_localization',
         executable='ekf_node',
         name='ekf_filter_node_map',
         parameters=[os.path.join(get_package_share_directory('weed_detection'), 'config', 'ekf.yaml')],
         remappings=[('odometry/filtered', 'odometry/global')],
+        condition=UnlessCondition(gps_off),
     ),
     
     Node(
@@ -92,7 +101,7 @@ def generate_launch_description():
                     ('imu', '/imu/data'),
                     ('odometry/filtered', 'odometry/global'),
                     ],
+        condition=UnlessCondition(gps_off),
         ),
-        '''
-
+        
     ])
