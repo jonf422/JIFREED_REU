@@ -38,7 +38,7 @@ setup(
             "drive_controller_node = weed_detection.control.drive_controller_node:main",
             "tool_controller_node = weed_detection.control.tool_controller_node:main",
             "mission_manager_node = weed_detection.control.mission_manager_node:main",
-            
+
             #Navigation
             "wheel_odom_node = weed_detection.navigation.wheel_odom_node:main",
 
@@ -50,7 +50,8 @@ setup(
             "realsense_depth_display_node = weed_detection.display.realsense_depth_display_node:main",
 
             #Calibration
-            "imu_noise_cali = weed_detection.calibration.imu_noise_cali:main" 
+            "imu_noise_cali = weed_detection.calibration.imu_noise_cali:main",
+            "drive_calibration = weed_detection.calibration.drive_calibration:main" 
             
         ],
     },
