@@ -86,7 +86,7 @@ class toolControllerNode(Node):
 
         result = ToolCommand.Result()
         feedback = ToolCommand.Feedback()
-        deadline = time.time() + 30.0
+        deadline = time.time() + 60.0
 
         while rclpy.ok():
             #handle cancelation
