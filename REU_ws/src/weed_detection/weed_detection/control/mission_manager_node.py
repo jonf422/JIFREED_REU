@@ -5,11 +5,11 @@ from weed_interfaces.action import ToolCommand
 from enum import Enum, auto
 
 class State(Enum):
-    IDLE() = auto()
-    HOMING() = auto()
-    DRILLING() = auto()
-    DONE() = auto()
-    FAILED() = auto()
+    IDLE = auto()
+    HOMING = auto()
+    DRILLING = auto()
+    DONE = auto()
+    FAILED = auto()
 
 class MissionManagerNode(Node):
     def __init__(self):
