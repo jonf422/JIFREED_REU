@@ -1,0 +1,9 @@
+# Goal
+float64[2] coordinates      #[latitude, longitude] coordinates
+---
+# Result
+int32 return_code 
+string message
+---
+# Feedback
+string status 
