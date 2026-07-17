@@ -36,15 +36,11 @@ class MissionManagerNode(Node):
     def tick(self):
         if self.state == State.INITIALIZING:
             if self.all_nodes_ready():
-                if self.waypoint_client.server_is_ready():
-                    if self.lat and self.lon != 0.0:
-                        self.send_waypoint_cmd([self.lat,self.lon])
-                    else:
-                        self.action_done = True
-                        self.action_code = 0
+                if self.lat == 0.0 or self.lon == 0.0:
+                    self.transition(State.DONE)
+                elif self.waypoint_client.server_is_ready():
                     self.transition(State.WAYPOINT)
-                else:
-                    self.transition(State.FAILED)
+                    self.send_waypoint_cmd([self.lat,self.lon])
         
         elif self.state == State.WAYPOINT:
             if self.action_done:
