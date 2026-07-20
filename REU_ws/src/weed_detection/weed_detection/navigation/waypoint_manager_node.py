@@ -134,7 +134,7 @@ class WaypointManagerNode(Node):
         lat, lon = goal_handle.request.coordinates
 
         #TODO: convert lat,lon to map frame
-        gx, gy = fromll()
+        gx, gy = self._from_ll(lat, lon)
         if gx is None or gy is None:
             goal_handle.abort()
             result.return_code = 1

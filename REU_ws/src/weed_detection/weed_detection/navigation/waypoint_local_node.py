@@ -37,9 +37,9 @@ def clamp(value: float, limit: float) -> float:
     return max(-limit, min(limit, value))
 
 
-class WaypointManagerNode(Node):
+class WaypointLocalNode(Node):
     def __init__(self):
-        super().__init__('waypoint_manager_node')
+        super().__init__('waypoint_local_node')
 
         # ------- Parameters --------------------
         self.declare_parameter('waypoints', [0.0, 0.0])
@@ -129,7 +129,7 @@ class WaypointManagerNode(Node):
 
 def main(args=None):
     rclpy.init(args=args)
-    node = WaypointManagerNode()
+    node = WaypointLocalNode()
     try:
         rclpy.spin(node)
     except KeyboardInterrupt:

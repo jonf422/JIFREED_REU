@@ -46,7 +46,7 @@ class CombinedDisplayNode(Node):
         self._log_counter = 0
 
         self.create_subscription(Image, "/vision/arducam_display",   self._arducam_cb,   SENSOR_QOS)
-        self.create_subscription(Image, "/vision/realsense_display", self._realsense_cb, SENSOR_QOS)
+        self.create_subscription(Image, "/vision/realsense_color", self._realsense_cb, SENSOR_QOS)
         self.create_subscription(Image, "/vision/realsense_depth",   self._depth_cb,     SENSOR_QOS)
 
         self.get_logger().info("combined_display_node started")
