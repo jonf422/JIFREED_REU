@@ -51,6 +51,11 @@ def generate_launch_description():
         # --- Navigation -----------------------------
         Node(
             package='weed_detection',
+            executable='waypoint_manager_node',
+            name='waypoint_manager_node',
+            ),
+        Node(
+            package='weed_detection',
             executable='wheel_odom_node',
             name='wheel_odom_node',
         ),
@@ -69,11 +74,6 @@ def generate_launch_description():
             package='weed_detection',
             executable='drive_controller_node',
             name='drive_controller_node',
-        ),
-        Node(
-            package='weed_detection',
-            executable='tool_controller_node',
-            name='tool_controller_node',
         ),
         Node(
             package='weed_detection',
