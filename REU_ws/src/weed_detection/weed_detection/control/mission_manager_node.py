@@ -7,6 +7,7 @@ from enum import Enum, auto
 class State(Enum):
     INITIALIZING = auto()
     WAYPOINT = auto()
+    PATROL = auto()
     DONE = auto()
     FAILED = auto()
 
@@ -37,7 +38,7 @@ class MissionManagerNode(Node):
         if self.state == State.INITIALIZING:
             if self.all_nodes_ready():
                 if self.lat == 0.0 or self.lon == 0.0:
-                    self.transition(State.DONE)
+                    self.transition(State.PATROL)
                 elif self.waypoint_client.server_is_ready():
                     self.transition(State.WAYPOINT)
                     self.send_waypoint_cmd([self.lat,self.lon])
@@ -45,9 +46,13 @@ class MissionManagerNode(Node):
         elif self.state == State.WAYPOINT:
             if self.action_done:
                 if self.action_code == 0:
-                    self.transition(State.DONE)
+                    self.transition(State.PATROL)
                 else:
                     self.transition(State.FAILED)
+        
+        # TODO: IMplement visual servoing path patrol
+        elif self.state == State.PATROL:
+            self.transition(State.DONE)
     
 
         elif self.state == State.DONE:
