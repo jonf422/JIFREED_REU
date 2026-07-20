@@ -21,7 +21,7 @@ SENSOR_QOS = QoSProfile(
     depth=2,
 )
 
-class arducamDisplayNode(Node):
+class ArducamDisplayNode(Node):
     def __init__(self):
         super().__init__("arducam_display_node")
 
@@ -42,7 +42,7 @@ class arducamDisplayNode(Node):
 
 def main(args=None):
     rclpy.init(args=args)
-    node = arducamDisplayNode()
+    node = ArducamDisplayNode()
     try:
         rclpy.spin(node)
     except KeyboardInterrupt:

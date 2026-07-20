@@ -39,7 +39,7 @@ TIMEOUT_PERIOD = {
     "drill": 60,
                   }
 
-class toolControllerNode(Node):
+class ToolControllerNode(Node):
     def __init__(self):
         super().__init__('tool_controller_node')
 
@@ -130,7 +130,7 @@ class toolControllerNode(Node):
 
 def main():
     rclpy.init()
-    node = toolControllerNode()
+    node = ToolControllerNode()
     # MultiThreaded so cancel + execute aren't stuck on one thread
     executor = MultiThreadedExecutor()
     executor.add_node(node)

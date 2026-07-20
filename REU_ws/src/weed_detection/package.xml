@@ -8,6 +8,8 @@
   <license>TODO: License declaration</license>
 
   <exec_depend>weed_interfaces</exec_depend>
+  <exec_depend>tf2_ros</exec_depend>
+  <exec_depend>nmea_navsat_driver</exec_depend>
   
   <depend>rclpy</depend>
   <depend>sensor_msgs</depend>
@@ -17,6 +19,8 @@
   <depend>python3-opencv</depend>
   <depend>python3-pyrealsense2</depend>
   <depend>robot_localization</depend>
+  <depend>numpy</depend>
+  <depend>pyserial</depend>
 
   <test_depend>ament_copyright</test_depend>
   <test_depend>ament_flake8</test_depend>

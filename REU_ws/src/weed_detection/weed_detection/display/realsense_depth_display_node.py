@@ -13,7 +13,7 @@ SENSOR_QOS = QoSProfile(
     depth=2,
 )
 
-class depthDisplayNode(Node):
+class DepthDisplayNode(Node):
     def __init__(self):
         super().__init__("realsense_depth_display_node")
 
@@ -63,7 +63,7 @@ class depthDisplayNode(Node):
 
 def main(args=None):
     rclpy.init(args=args)
-    node = depthDisplayNode()
+    node = DepthDisplayNode()
     try:
         rclpy.spin(node)
     except KeyboardInterrupt:

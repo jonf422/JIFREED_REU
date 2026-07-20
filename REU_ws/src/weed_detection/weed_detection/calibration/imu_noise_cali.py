@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-measure_imu_noise.py
+imu_noise_cali.py
 
 Subscribes to /imu/data, collects samples while the robot is STATIONARY,
 and reports the variance of each axis. Use the variances as starting
