@@ -38,7 +38,11 @@ SENSOR_QOS = QoSProfile(
     history=HistoryPolicy.KEEP_LAST,
     depth=2,
 )
-
+IMU_QOS = QoSProfile(
+    reliability=ReliabilityPolicy.RELIABLE,
+    history=HistoryPolicy.KEEP_LAST,
+    depth=2,
+)
 
 class RealSenseNode(Node):
 
@@ -62,7 +66,7 @@ class RealSenseNode(Node):
         # Publishers
         self._color_pub = self.create_publisher(Image, '/vision/realsense_color', SENSOR_QOS)
         self._depth_pub = self.create_publisher(Image, '/vision/realsense_depth', SENSOR_QOS)
-        self._imu_pub = self.create_publisher(Imu, '/imu/data', SENSOR_QOS)
+        self._imu_pub = self.create_publisher(Imu, '/imu/data', IMU_QOS)
         self._info_pub = self.create_publisher(CameraInfo, '/vision/realsense_camera_info', 1)
         self._bridge = CvBridge()
 
