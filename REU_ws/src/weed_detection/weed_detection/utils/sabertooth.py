@@ -44,6 +44,7 @@ class SaberToothMotorDriver:
             stopbits=serial.STOPBITS_ONE,
         )
         time.sleep(1)
+        self.sabertooth_UART_serial.write([170]) #send startup byte
 
         self.motor1_reversed = motor1_reversed
         self.motor2_reversed = motor2_reversed
