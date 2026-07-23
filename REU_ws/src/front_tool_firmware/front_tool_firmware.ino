@@ -7,6 +7,13 @@
 #include "esp_system.h"
 
 SFEVL53L1X distanceSensor;
+// ------------------------------------------------------------
+// CURRENT CHECK
+// ------------------------------------------------------------
+#define CURR_PIN            34
+#define CURR_CHECK_INTERVAL 100
+#define CURR_TRIP_MARGIN    600
+#define CURR_TRIP_CONSEC    3
 
 // ============================================================
 //  PIN / PWM CONFIG
@@ -62,6 +69,7 @@ SFEVL53L1X distanceSensor;
 // ============================================================
 #define RC_OK              0
 #define RC_MOVE_UNSAFE     1
+#define RC_OVERCURRENT     2
 // codes 2-9 reserved
 
 // ============================================================
@@ -87,6 +95,38 @@ bool    fbCalValid = false;
 // ============================================================
 volatile long currentPos = 0;
 bool          isHomed    = false;
+
+volatile bool overcurrent      = false;
+bool          currentArmed     = false;
+uint16_t      currentBaseline  = 0;
+uint16_t      currentTripCount = 0;
+
+// ------------------------------------------------------------
+// CURRENT READINGS
+// ------------------------------------------------------------
+uint16_t getCurrPeak(){
+    uint16_t peakCurr = 0;
+    uint32_t t0 = micros();
+    while (micros() - t0 < 1500){
+        uint16_t v = analogRead(CURR_PIN);
+        if (v > peakCurr) peakCurr = v;
+    }
+    return peakCurr;
+}
+
+void checkCurr(){
+    static uint16_t steps = 0;
+    if (!currentArmed || overcurrent) return;
+    if (++steps < CURR_CHECK_INTERVAL) return;
+    steps = 0;
+
+    if (getCurrPeak() > currentBaseline + CURR_TRIP_MARGIN){
+        if (++currentTripCount >= CURR_TRIP_CONSEC) overcurrent = true;
+    }
+    else{
+        currentTripCount = 0;
+    }
+}
 
 // ============================================================
 //  EEPROM HELPERS
@@ -274,6 +314,7 @@ void sendStep(uint32_t freq_hz) {
 
     rmt_write_items(RMT_CHANNEL, &item, 1, true);
     checkStop();
+    checkCurr();
 }
 
 // ============================================================
@@ -294,12 +335,12 @@ void moveRelative(long steps) {
     uint32_t vel_steps    = acc_steps / ACC_DISC_INTERVAL;
     uint32_t coast_steps  = n - 2 * (vel_steps * ACC_DISC_INTERVAL);
 
-    for (uint32_t i = 0; i < vel_steps; i++) {
+    for (uint32_t i = 0; i < vel_steps && !overcurrent; i++) {
         for (uint16_t j = 0; j < ACC_DISC_INTERVAL; j++) sendStep(f);
         f += ACC;
     }
-    for (uint32_t i = 0; i < coast_steps; i++) sendStep(f);
-    for (uint32_t i = 0; i < vel_steps; i++) {
+    for (uint32_t i = 0; i < coast_steps && !overcurrent; i++) sendStep(f);
+    for (uint32_t i = 0; i < vel_steps && !overcurrent; i++) {
         for (uint16_t j = 0; j < ACC_DISC_INTERVAL; j++) sendStep(f);
         f -= ACC;
     }
@@ -397,8 +438,22 @@ int doDrill() {
     pwmSetChannel(PWM_CH_CW, DRILL_DUTY_PCT);
     delay(DRILL_STARTUP_MS);
 
+    currentBaseline = getCurrPeak();
+    currentArmed    = true;
+
     // 2. Feed to max range
     bool ok = moveAbsoluteCheck(calData.range);
+
+    if (overcurrent) {
+        currentArmed = false;
+        pwmSetChannel(PWM_CH_CCW, DRILL_DUTY_PCT);
+        delay(DRILL_STARTUP_MS);
+        moveAbsolute(calData.offset);
+        bothOff();
+        isHomed = false;
+        return RC_OVERCURRENT;
+    }
+
     if (!ok) {
         bothOff();
         return RC_MOVE_UNSAFE;
