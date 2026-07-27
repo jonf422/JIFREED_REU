@@ -17,12 +17,18 @@ Topic Publications:
 
 import rclpy
 from rclpy.node import Node
-from rclpy.qos import QoSProfile
+from rclpy.qos import QoSProfile, ReliabilityPolicy, HistoryPolicy
  
 from geometry_msgs.msg import Twist, Quaternion
 from nav_msgs.msg import Odometry
 
 import numpy as np
+
+qos = QoSProfile(
+    reliability=ReliabilityPolicy.BEST_EFFORT,
+    history=HistoryPolicy.KEEP_LAST,
+    depth=10,
+)
 
 def yaw_to_quaternion(yaw: float) -> Quaternion:
     #2D yaw -> quaternion (only z/w are nonzero for planar rotation).
@@ -46,7 +52,6 @@ class WheelOdomNode(Node):
 
         self.last_time = self.get_clock().now()
 
-        qos = QoSProfile(depth=10)
         self.odom_pub = self.create_publisher(Odometry, '/odom', qos)
         self.create_subscription(Twist, '/cmd_vel', self.cmd_vel_cb, qos)
 
