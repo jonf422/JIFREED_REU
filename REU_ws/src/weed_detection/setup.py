@@ -44,6 +44,7 @@ setup(
             #Navigation
             "wheel_odom_node = weed_detection.navigation.wheel_odom_node:main",
             "waypoint_manager_node = weed_detection.navigation.waypoint_manager_node:main",
+            "waypoint_local_node = weed_detection.navigation.waypoint_local_node:main",
 
             #Display
             "combined_display_node = weed_detection.display.combined_display_node:main",
