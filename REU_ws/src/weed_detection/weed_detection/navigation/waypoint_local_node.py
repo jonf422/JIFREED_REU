@@ -45,8 +45,8 @@ class WaypointLocalNode(Node):
         self.declare_parameter('waypoints', [0.0, 0.0])
         self.declare_parameter('goal_tolerance', .3) #m
         self.declare_parameter('heading_spin_tolerance', math.pi/4) #rad
-        self.declare_parameter('max_linear', .3) #m/s
-        self.declare_parameter('max_angular', .8) #rad/s
+        self.declare_parameter('max_linear', .6) #m/s
+        self.declare_parameter('max_angular', 1.2) #rad/s
         self.declare_parameter('frequency', 30) #hz
         self.declare_parameter('odom_timeout', .5) #s
         self.declare_parameter('kp_linear', 0.5)
