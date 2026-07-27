@@ -52,9 +52,9 @@ class WaypointManagerNode(Node):
         # ------- Parameters --------------------
         self.declare_parameter('goal_tolerance', .3) #m
         self.declare_parameter('accept_range', 20.0) #m
-        self.declare_parameter('heading_spin_tolerance', math.pi/4) #rad
-        self.declare_parameter('max_linear', .3) #m/s
-        self.declare_parameter('max_angular', .8) #rad/s
+        self.declare_parameter('heading_spin_tolerance', math.pi/3) #rad
+        self.declare_parameter('max_linear', .6) #m/s
+        self.declare_parameter('max_angular', 1.2) #rad/s
         self.declare_parameter('frequency', 30.0) #hz
         self.declare_parameter('odom_timeout', .5) #s
         self.declare_parameter('kp_linear', 0.5)
@@ -154,7 +154,7 @@ class WaypointManagerNode(Node):
         #set goal active
         with self._goal_lock:
             self._goal_handle = goal_handle
-        self.get_logger().info(f'Navigating to ({lat:.6f},{lon:.6f}) -> map ({gx:.2f},{gy:.2f})')
+        self.get_logger().info(f'Navigating to ({lat:.6f},{lon:.6f}) -> map ({gx:.2f},{gy:.2f}) Distance: {dist}')
 
         #control loop
         budget = 10 + 2*(dist/self.max_lin)
@@ -204,7 +204,8 @@ class WaypointManagerNode(Node):
                 goal_handle.publish_feedback(feedback)
 
                 cmd = Twist()
-                cmd.angular.z = clamp(self.kp_ang * heading_err, self.max_ang)
+		rot = clamp(self.kp_ang * heading_err, self.max_ang)
+                cmd.angular.z = (rot if rot >= .1 else .1)
                 cmd.linear.x = (0.0 if abs(heading_err) > self.heading_tol else clamp(self.kp_lin * distance, self.max_lin))
                 self.cmd_vel_pub.publish(cmd)
 
