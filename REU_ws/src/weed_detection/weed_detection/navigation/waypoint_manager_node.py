@@ -205,8 +205,11 @@ class WaypointManagerNode(Node):
                 goal_handle.publish_feedback(feedback)
 
                 cmd = Twist()
-		        rot = clamp(self.kp_ang * heading_err, self.max_ang)
-                cmd.angular.z = (rot if rot >= .1 else .1)
+                rot = clamp(self.kp_ang * heading_err, self.max_ang)
+                MIN_ROT = 0.1
+                if abs(heading_err) > 0.05 and 0.0 < abs(rot) < MIN_ROT:
+                    rot = math.copysign(MIN_ROT, rot)
+                cmd.angular.z = rot
                 cmd.linear.x = (0.0 if abs(heading_err) > self.heading_tol else clamp(self.kp_lin * distance, self.max_lin))
                 self.cmd_vel_pub.publish(cmd)
 
