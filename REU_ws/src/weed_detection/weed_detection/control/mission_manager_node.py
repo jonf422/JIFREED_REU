@@ -124,7 +124,7 @@ class MissionManagerNode(Node):
         goal.coordinates = frame
         self.get_logger().info(f"Sending coordinates: {cmd}")
 
-        send_future = self.waypoint_client.send_goal_async(goal)
+        send_future = self.waypoint_client.send_goal_async(goal, self._on_feedback)
         send_future.add_done_callback(self.on_goal_response)
 
     
@@ -147,6 +147,10 @@ class MissionManagerNode(Node):
             f"Result: code {result.return_code} ({result.message})")
         self.action_code = result.return_code
         self.action_done = True
+
+    def _on_feedback(self, msg):
+        feedback = msg.feedback
+        self.get_logger().info(f'Distance Remaining: {feedback:.1f} m', throttle_duration_sec=2.0)
 
 
 def main():
