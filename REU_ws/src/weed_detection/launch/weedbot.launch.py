@@ -17,6 +17,9 @@ from launch_ros.actions import Node
 def generate_launch_description():
     headless_launch = LaunchConfiguration('headless_launch')
     gps_off = LaunchConfiguration('gps_off')
+    without_mission = LaunchConfiguration('without_mission')
+
+    coords = LaunchConfiguration('coords')
 
     return LaunchDescription([
         DeclareLaunchArgument(
@@ -29,6 +32,17 @@ def generate_launch_description():
             default_value='false',
             description='If true, skip nmea_serial_driver'
         ),
+        DeclareLaunchArgument(
+            'without_mission',
+            default_value='false',
+            description='If true, skip mission_manager_node'
+        ),
+
+        DeclareLaunchArgument(
+            'coords',
+            default_value='[0.0,0.0]',
+            description='Target Waypoint [x,y] or [lat,lon] (MAX RANGE default = 20 m). Default waypoint [0.0,0.0] will skip waypoint navigation)'
+        )
 
         # --- Display - only when NOT headless--------
         Node(
@@ -79,6 +93,8 @@ def generate_launch_description():
             package='weed_detection',
             executable='mission_manager_node',
             name='mission_manager_node',
+            parameters=[{'coords': ParameterValue(coords, value_type=[float]),}],
+            condition=UnlessCondition(without_mission),
         ),
 
     ])
