@@ -24,9 +24,11 @@ class MissionManagerNode(Node):
         super().__init__('mission_manager_node')
 
         self.declare_parameter('coords', [0.0,0.0])
+        self.declare_parameter('frame', 'map')
         self.declare_parameter('required_topics', ['/imu/data', '/odom', '/odometry/local', '/odometry/gps', '/odometry/global'])
 
         self.required_topics = self.get_parameter('required_topics').value
+        self.frame = self.get_parameter('frame').value
         raw = self.get_parameter('coords').value
         if len(raw) != 2:
             self.get_logger().error(f'coords must be [x, y], got {list(raw)} — treating as no-waypoint')
@@ -58,7 +60,7 @@ class MissionManagerNode(Node):
                     self.transition(State.PATROL)
                 elif self.waypoint_client.server_is_ready():
                     self.transition(State.WAYPOINT)
-                    self.send_waypoint_cmd(self.coords)
+                    self.send_waypoint_cmd(self.coords, self.frame)
         
         elif self.state == State.WAYPOINT:
             if self.action_done:
@@ -113,12 +115,13 @@ class MissionManagerNode(Node):
     # -----------------------------------
     # Navigation Functions
     # -----------------------------------
-    def send_waypoint_cmd(self, cmd):
+    def send_waypoint_cmd(self, cmd, frame):
         self.action_done = False
         self.action_code = None
 
         goal = WaypointCommand.Goal()
         goal.coordinates = cmd
+        goal.coordinates = frame
         self.get_logger().info(f"Sending coordinates: {cmd}")
 
         send_future = self.waypoint_client.send_goal_async(goal)

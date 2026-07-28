@@ -131,16 +131,22 @@ class WaypointManagerNode(Node):
         result = WaypointCommand.Result()
         feedback = WaypointCommand.Feedback()
         coords = goal_handle.request.coordinates
+        frame = goal_handle.request.frame
 
-        if (-self.accept_range <= coords[0] <= self.accept_range) and (-self.accept_range <= coords[1] <= self.accept_range):
+        if frame == 'map':
             gx, gy = coords[0], coords[1]
-        else:
+        elif frame == 'gps':
             gx, gy = self._from_ll(coords[0], coords[1])
             if gx is None or gy is None:
                 goal_handle.abort()
                 result.return_code = 1
                 result.message = 'fromLL conversion failed'
                 return result
+        else:
+            goal_handle.abort()
+            result.return_code = 1
+            result.message = 'frame unknown, use either \'gps\' or \'map\''
+            return result
         
         #calculate distance to goal, reject if greater than accept_range param
         with self._pose_lock:
