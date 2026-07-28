@@ -1,5 +1,6 @@
 # Goal
-float64[2] coordinates      #[latitude, longitude] coordinates
+float64[2] coordinates
+string frame #'gps' (lat,lon) or 'map' (x,y) meters
 ---
 # Result
 int32 return_code 
