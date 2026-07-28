@@ -54,7 +54,7 @@ class WaypointManagerNode(Node):
         self.declare_parameter('accept_range', 20.0) #m
         self.declare_parameter('heading_spin_tolerance', math.pi/3) #rad
         self.declare_parameter('max_linear', .6) #m/s
-        self.declare_parameter('max_angular', 1.2) #rad/s
+        self.declare_parameter('max_angular', 1.5) #rad/s
         self.declare_parameter('frequency', 30.0) #hz
         self.declare_parameter('odom_timeout', .5) #s
         self.declare_parameter('kp_linear', 0.5)
@@ -107,11 +107,10 @@ class WaypointManagerNode(Node):
 
         #check validity of command
         if len(coords) != 2:
-            self.get_logger().warn('Rejecting goal: coordinates must be [lat, lon]')
+            self.get_logger().warn('Rejecting goal: coordinates must be [lat, lon] or [x,y]')
             return GoalResponse.REJECT
-        lat, lon = coords[0], coords[1]
-        if not (-90.0 <= lat <= 90.0) or not (-180.0 <= lon <= 180.0):
-            self.get_logger().warn(f'Rejecting goal: ({lat}, {lon}) out of range')
+        if not (-90.0 <= coords[0] <= 90.0) or not (-180.0 <= coords[1] <= 180.0):
+            self.get_logger().warn(f'Rejecting goal: ({coords[0]}, {coords[1]}) out of range')
             return GoalResponse.REJECT
         with self._pose_lock:
             fresh = self.have_pose and not self._pose_stale()
@@ -131,15 +130,17 @@ class WaypointManagerNode(Node):
     def execute_cb(self, goal_handle):
         result = WaypointCommand.Result()
         feedback = WaypointCommand.Feedback()
-        lat, lon = goal_handle.request.coordinates
+        coords = goal_handle.request.coordinates
 
-        #TODO: convert lat,lon to map frame
-        gx, gy = self._from_ll(lat, lon)
-        if gx is None or gy is None:
-            goal_handle.abort()
-            result.return_code = 1
-            result.message = 'fromLL conversion failed'
-            return result
+        if (-self.accept_range <= coords[0] <= self.accept_range) and (-self.accept_range <= coords[1] <= self.accept_range):
+            gx, gy = coords[0], coords[1]
+        else:
+            gx, gy = self._from_ll(coords[0], coords[1])
+            if gx is None or gy is None:
+                goal_handle.abort()
+                result.return_code = 1
+                result.message = 'fromLL conversion failed'
+                return result
         
         #calculate distance to goal, reject if greater than accept_range param
         with self._pose_lock:
@@ -154,7 +155,7 @@ class WaypointManagerNode(Node):
         #set goal active
         with self._goal_lock:
             self._goal_handle = goal_handle
-        self.get_logger().info(f'Navigating to ({lat:.6f},{lon:.6f}) -> map ({gx:.2f},{gy:.2f}) Distance: {dist}')
+        self.get_logger().info(f'Navigating to ({coords[0]:.6f},{coords[1]:.6f})\nDistance: {dist}')
 
         #control loop
         budget = 10 + 2*(dist/self.max_lin)
