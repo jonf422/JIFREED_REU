@@ -23,13 +23,16 @@ class MissionManagerNode(Node):
     def __init__(self):
         super().__init__('mission_manager_node')
 
-        self.declare_parameter('latitude', 0.0)
-        self.declare_parameter('longitude', 0.0)
+        self.declare_parameter('coords', [0.0,0.0])
         self.declare_parameter('required_topics', ['/imu/data', '/odom', '/odometry/local', '/odometry/gps', '/odometry/global'])
 
-        self.lat = self.get_parameter('latitude').value
-        self.lon = self.get_parameter('longitude').value
         self.required_topics = self.get_parameter('required_topics').value
+        raw = self.get_parameter('coords').value
+        if len(raw) != 2:
+            self.get_logger().error(f'coords must be [x, y], got {list(raw)} — treating as no-waypoint')
+            self.coords = [0.0, 0.0]
+        else:
+            self.coords = list(raw)
 
         #set state
         self.state = State.INITIALIZING
@@ -51,11 +54,11 @@ class MissionManagerNode(Node):
     def tick(self):
         if self.state == State.INITIALIZING:
             if self.all_nodes_ready():
-                if self.lat == 0.0 and self.lon == 0.0:
+                if self.coords[0] == 0.0 and self.coords[1] == 0.0:
                     self.transition(State.PATROL)
                 elif self.waypoint_client.server_is_ready():
                     self.transition(State.WAYPOINT)
-                    self.send_waypoint_cmd([self.lat,self.lon])
+                    self.send_waypoint_cmd(self.coords)
         
         elif self.state == State.WAYPOINT:
             if self.action_done:
@@ -104,7 +107,7 @@ class MissionManagerNode(Node):
     
         return True
 
-    def _odom_probe_cb(self, msg):
+    def _odom_check(self, msg):
         self._odom_seen = True
 
     # -----------------------------------
