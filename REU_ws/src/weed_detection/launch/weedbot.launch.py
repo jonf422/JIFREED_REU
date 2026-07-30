@@ -13,6 +13,7 @@ from launch.actions import DeclareLaunchArgument
 from launch.substitutions import LaunchConfiguration
 from launch.conditions import UnlessCondition
 from launch_ros.actions import Node
+from launch_ros.parameter_descriptions import ParameterValue
 
 def generate_launch_description():
     headless_launch = LaunchConfiguration('headless_launch')
@@ -20,6 +21,7 @@ def generate_launch_description():
     without_mission = LaunchConfiguration('without_mission')
 
     coords = LaunchConfiguration('coords')
+    frame = LaunchConfiguration('frame')
 
     return LaunchDescription([
         DeclareLaunchArgument(
@@ -42,7 +44,12 @@ def generate_launch_description():
             'coords',
             default_value='[0.0,0.0]',
             description='Target Waypoint [x,y] or [lat,lon] (MAX RANGE default = 20 m). Default waypoint [0.0,0.0] will skip waypoint navigation)'
-        )
+        ),
+        DeclareLaunchArgument(
+            'frame',
+            default_value='map',
+            description='Default frame for coordinates (map or odom)'
+        ),
 
         # --- Display - only when NOT headless--------
         Node(
@@ -93,7 +100,8 @@ def generate_launch_description():
             package='weed_detection',
             executable='mission_manager_node',
             name='mission_manager_node',
-            parameters=[{'coords': ParameterValue(coords, value_type=[float]),}],
+            parameters=[{'coords': ParameterValue(coords, value_type=list[float]),
+                         'frame': ParameterValue(frame, value_type=str)}],
             condition=UnlessCondition(without_mission),
         ),
 
