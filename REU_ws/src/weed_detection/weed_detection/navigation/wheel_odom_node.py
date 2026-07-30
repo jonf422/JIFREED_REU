@@ -25,7 +25,7 @@ from nav_msgs.msg import Odometry
 import numpy as np
 
 qos = QoSProfile(
-    reliability=ReliabilityPolicy.BEST_EFFORT,
+    reliability=ReliabilityPolicy.RELIABLE,
     history=HistoryPolicy.KEEP_LAST,
     depth=10,
 )
