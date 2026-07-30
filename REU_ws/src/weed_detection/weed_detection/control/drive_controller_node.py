@@ -47,7 +47,7 @@ class DriveControllerNode(Node):
 
         #Initialize Sabertooth Motor Driver
         try:
-            self._motors = SaberToothMotorDriver(True, True)
+            self._motors = SaberToothMotorDriver(True, True, call_rate_hz=30.0)
             self.get_logger().info("Sabertooth Motor Driver Initialized")
         except Exception as e:
             self.get_logger().error(f"Sabertooth Motor Driver Failed to Initialize:\n{e}")
