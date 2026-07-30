@@ -26,7 +26,7 @@ import atexit
 import time
 
 QOS_PROFILE = QoSProfile(
-    reliability=ReliabilityPolicy.BEST_EFFORT,
+    reliability=ReliabilityPolicy.RELIABLE,
     history=HistoryPolicy.KEEP_LAST,
     depth=2,
 )
@@ -68,7 +68,7 @@ class DriveControllerNode(Node):
         self._last_msg_t = time.time()
         self._motors_stopped = False
 
-        #recieve Twist cmd
+        #recieve Twist cm
         v = msg.linear.x #m/s forward
         w = msg.angular.z #rad/s (ccw positive)
 
@@ -87,7 +87,6 @@ class DriveControllerNode(Node):
             right_cmd *= self._max_actuator / peak
 
         #debug logger
-        self.get_logger().info(f'v={v:.3f} w={w:.3f} | L={left_cmd:.1f} R={right_cmd:.1f}')
 
         #Send command to Sabertooth Driver
         self._motors.updateMotorSpeed(left_cmd, right_cmd)

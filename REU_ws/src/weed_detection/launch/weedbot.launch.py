@@ -48,7 +48,7 @@ def generate_launch_description():
         ),
         DeclareLaunchArgument(
             'frame',
-            default_value='map',
+            default_value='odom',
             description='Default frame for coordinates (map or odom)'
         ),
 

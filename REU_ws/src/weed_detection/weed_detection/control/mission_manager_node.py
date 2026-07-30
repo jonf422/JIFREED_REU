@@ -24,7 +24,7 @@ class MissionManagerNode(Node):
         super().__init__('mission_manager_node')
 
         self.declare_parameter('coords', [0.0,0.0])
-        self.declare_parameter('frame', 'map')
+        self.declare_parameter('frame', 'odom')
         self.declare_parameter('required_topics', ['/imu/data', '/odom', '/odometry/local', '/odometry/gps', '/odometry/global'])
 
         self.required_topics = self.get_parameter('required_topics').value
@@ -150,7 +150,7 @@ class MissionManagerNode(Node):
 
     def _on_feedback(self, msg):
         feedback = msg.feedback
-        self.get_logger().info(f'Distance Remaining: {feedback.status} m', throttle_duration_sec=2.0)
+        self.get_logger().info(f'Distance Remaining: {feedback.status} m', throttle_duration_sec=0.5)
 
 
 def main():
