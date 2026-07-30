@@ -14,6 +14,7 @@ from launch.substitutions import LaunchConfiguration
 from launch.conditions import UnlessCondition
 from launch_ros.actions import Node
 from launch_ros.parameter_descriptions import ParameterValue
+from typing import List
 
 def generate_launch_description():
     headless_launch = LaunchConfiguration('headless_launch')
@@ -100,7 +101,7 @@ def generate_launch_description():
             package='weed_detection',
             executable='mission_manager_node',
             name='mission_manager_node',
-            parameters=[{'coords': ParameterValue(coords, value_type=list[float]),
+            parameters=[{'coords': ParameterValue(coords, value_type=List[float]),
                          'frame': ParameterValue(frame, value_type=str)}],
             condition=UnlessCondition(without_mission),
         ),
