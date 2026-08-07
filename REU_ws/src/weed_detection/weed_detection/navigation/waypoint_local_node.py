@@ -18,7 +18,7 @@ from rclpy.qos import QoSProfile, ReliabilityPolicy, HistoryPolicy
 import math
 
 QOS_PROFILE = QoSProfile(
-    reliability=ReliabilityPolicy.BEST_EFFORT,
+    reliability=ReliabilityPolicy.RELIABLE,
     history=HistoryPolicy.KEEP_LAST,
     depth=2,
 )

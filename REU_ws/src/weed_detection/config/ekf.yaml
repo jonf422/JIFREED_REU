@@ -31,7 +31,7 @@ ekf_filter_node_odom:
                   false, false, false]
     odom0_queue_size: 10
 
-    #imu publishes 
+    #imu publishes
     imu0: /imu/data
     imu0_config: [false,  false,  false,
                   false, false, false,
@@ -39,7 +39,31 @@ ekf_filter_node_odom:
                   false, false, true,
                   false, false, false]
     imu0_queue_size: 10
-    
+
+    # This filter never gets an absolute position/orientation correction (no odom0
+    # pose, no GPS here) -- x/y/yaw are a pure integral of the fused velocities and
+    # will drift without bound regardless of these numbers. dynamic_process_noise_covariance
+    # scales the process noise below by the current velocity/acceleration estimate, so
+    # uncertainty grows while actually moving (where wheel_odom_node's fake, command-derived
+    # vx is most likely to be wrong) and shrinks while stationary, instead of a flat rate.
+    dynamic_process_noise_covariance: true
+    process_noise_covariance: [
+      0.050, 0.000, 0.000, 0.000, 0.000, 0.000, 0.000, 0.000, 0.000, 0.000, 0.000, 0.000, 0.000, 0.000, 0.000,
+      0.000, 0.050, 0.000, 0.000, 0.000, 0.000, 0.000, 0.000, 0.000, 0.000, 0.000, 0.000, 0.000, 0.000, 0.000,
+      0.000, 0.000, 0.060, 0.000, 0.000, 0.000, 0.000, 0.000, 0.000, 0.000, 0.000, 0.000, 0.000, 0.000, 0.000,
+      0.000, 0.000, 0.000, 0.030, 0.000, 0.000, 0.000, 0.000, 0.000, 0.000, 0.000, 0.000, 0.000, 0.000, 0.000,
+      0.000, 0.000, 0.000, 0.000, 0.030, 0.000, 0.000, 0.000, 0.000, 0.000, 0.000, 0.000, 0.000, 0.000, 0.000,
+      0.000, 0.000, 0.000, 0.000, 0.000, 0.060, 0.000, 0.000, 0.000, 0.000, 0.000, 0.000, 0.000, 0.000, 0.000,
+      0.000, 0.000, 0.000, 0.000, 0.000, 0.000, 0.150, 0.000, 0.000, 0.000, 0.000, 0.000, 0.000, 0.000, 0.000,
+      0.000, 0.000, 0.000, 0.000, 0.000, 0.000, 0.000, 0.025, 0.000, 0.000, 0.000, 0.000, 0.000, 0.000, 0.000,
+      0.000, 0.000, 0.000, 0.000, 0.000, 0.000, 0.000, 0.000, 0.040, 0.000, 0.000, 0.000, 0.000, 0.000, 0.000,
+      0.000, 0.000, 0.000, 0.000, 0.000, 0.000, 0.000, 0.000, 0.000, 0.010, 0.000, 0.000, 0.000, 0.000, 0.000,
+      0.000, 0.000, 0.000, 0.000, 0.000, 0.000, 0.000, 0.000, 0.000, 0.000, 0.010, 0.000, 0.000, 0.000, 0.000,
+      0.000, 0.000, 0.000, 0.000, 0.000, 0.000, 0.000, 0.000, 0.000, 0.000, 0.000, 0.050, 0.000, 0.000, 0.000,
+      0.000, 0.000, 0.000, 0.000, 0.000, 0.000, 0.000, 0.000, 0.000, 0.000, 0.000, 0.000, 0.010, 0.000, 0.000,
+      0.000, 0.000, 0.000, 0.000, 0.000, 0.000, 0.000, 0.000, 0.000, 0.000, 0.000, 0.000, 0.000, 0.010, 0.000,
+      0.000, 0.000, 0.000, 0.000, 0.000, 0.000, 0.000, 0.000, 0.000, 0.000, 0.000, 0.000, 0.000, 0.000, 0.015,
+    ]
 
 
 #----- Global filter (GPS + local odom) -> map frame -------------------------
@@ -78,8 +102,15 @@ ekf_filter_node_map:
                   false, false, false,
                   false, false, false]
     odom1_queue_size: 10
+    # Reject individual GPS fixes that are wildly inconsistent with the current
+    # estimate (Mahalanobis distance gate on the pose portion of odom1, i.e. x/y).
+    # Guards against multipath/single-fix outliers from a single, non-RTK-verified
+    # antenna without needing better hardware. Keep this generous -- too tight and
+    # a legitimate large correction (e.g. after a long dead-reckoning-only stretch)
+    # gets thrown away instead of accepted.
+    odom1_pose_rejection_threshold: 3.0
 
-    #imu publishes 
+    #imu publishes
     imu0: /imu/data
     imu0_config: [false,  false,  false,
                   false, false, false,
@@ -87,6 +118,52 @@ ekf_filter_node_map:
                   false, false, true,
                   false, false, false]
     imu0_queue_size: 10
+
+    # This is the filter waypoint_manager_node actually reads (/odometry/global), so it's
+    # where fusion quality matters most.
+    #
+    # dynamic_process_noise_covariance scales the noise below by the current velocity
+    # estimate, so uncertainty grows while moving (exactly when wheel_odom_node's
+    # command-derived vx is most likely to be wrong) and shrinks while stationary.
+    #
+    # vx and vyaw process noise are raised well above robot_localization's defaults
+    # because /odom's velocity is not a measurement -- wheel_odom_node integrates the
+    # *commanded* /cmd_vel with no encoder feedback, so it can't see slip, stalls, or
+    # terrain. Treating it as if it were a trustworthy, low-noise velocity source (the
+    # old defaults) means the filter under-weights each new GPS fix relative to its own
+    # dead-reckoned prediction. Raising process noise on x/y/yaw does the same thing for
+    # the position/heading states: the filter's own uncertainty grows faster between GPS
+    # updates, so incoming fixes get pulled in with more authority instead of being
+    # smoothed away by an overconfident prediction. This is what should turn the
+    # non-monotonic "distance to goal" staircase seen in bag_data/5mRunBag into something
+    # closer to a smooth correction toward each new fix.
+    dynamic_process_noise_covariance: true
+    process_noise_covariance: [
+      0.150, 0.000, 0.000, 0.000, 0.000, 0.000, 0.000, 0.000, 0.000, 0.000, 0.000, 0.000, 0.000, 0.000, 0.000,
+      0.000, 0.150, 0.000, 0.000, 0.000, 0.000, 0.000, 0.000, 0.000, 0.000, 0.000, 0.000, 0.000, 0.000, 0.000,
+      0.000, 0.000, 0.060, 0.000, 0.000, 0.000, 0.000, 0.000, 0.000, 0.000, 0.000, 0.000, 0.000, 0.000, 0.000,
+      0.000, 0.000, 0.000, 0.030, 0.000, 0.000, 0.000, 0.000, 0.000, 0.000, 0.000, 0.000, 0.000, 0.000, 0.000,
+      0.000, 0.000, 0.000, 0.000, 0.030, 0.000, 0.000, 0.000, 0.000, 0.000, 0.000, 0.000, 0.000, 0.000, 0.000,
+      0.000, 0.000, 0.000, 0.000, 0.000, 0.120, 0.000, 0.000, 0.000, 0.000, 0.000, 0.000, 0.000, 0.000, 0.000,
+      0.000, 0.000, 0.000, 0.000, 0.000, 0.000, 0.400, 0.000, 0.000, 0.000, 0.000, 0.000, 0.000, 0.000, 0.000,
+      0.000, 0.000, 0.000, 0.000, 0.000, 0.000, 0.000, 0.025, 0.000, 0.000, 0.000, 0.000, 0.000, 0.000, 0.000,
+      0.000, 0.000, 0.000, 0.000, 0.000, 0.000, 0.000, 0.000, 0.040, 0.000, 0.000, 0.000, 0.000, 0.000, 0.000,
+      0.000, 0.000, 0.000, 0.000, 0.000, 0.000, 0.000, 0.000, 0.000, 0.010, 0.000, 0.000, 0.000, 0.000, 0.000,
+      0.000, 0.000, 0.000, 0.000, 0.000, 0.000, 0.000, 0.000, 0.000, 0.000, 0.010, 0.000, 0.000, 0.000, 0.000,
+      0.000, 0.000, 0.000, 0.000, 0.000, 0.000, 0.000, 0.000, 0.000, 0.000, 0.000, 0.080, 0.000, 0.000, 0.000,
+      0.000, 0.000, 0.000, 0.000, 0.000, 0.000, 0.000, 0.000, 0.000, 0.000, 0.000, 0.000, 0.010, 0.000, 0.000,
+      0.000, 0.000, 0.000, 0.000, 0.000, 0.000, 0.000, 0.000, 0.000, 0.000, 0.000, 0.000, 0.000, 0.010, 0.000,
+      0.000, 0.000, 0.000, 0.000, 0.000, 0.000, 0.000, 0.000, 0.000, 0.000, 0.000, 0.000, 0.000, 0.000, 0.015,
+    ]
+
+    # GPS updates in this bag arrived at ~1Hz with gaps up to 1.2s, and serial-parsed
+    # NMEA fixes can be timestamped slightly behind real time relative to /odom and
+    # /imu/data. Without this, robot_localization inserts a late-arriving GPS
+    # correction at the *current* time bin instead of the time it actually applies to,
+    # which looks like an extra jump on top of the real one. smooth_lagged_data lets it
+    # re-integrate the correction at the right point in the recent history buffer.
+    smooth_lagged_data: true
+    history_length: 2.0
 
 
 #----- Navsat transform -------------------------
