@@ -1,12 +1,22 @@
 #include <Arduino.h>
 #include "driver/rmt.h"
-#include "driver/ledc.h"
 #include <EEPROM.h>
 #include <Wire.h>
 #include <SparkFun_VL53L1X.h>
 #include "esp_system.h"
+#include "driver/mcpwm_timer.h"
+#include "driver/mcpwm_oper.h"
+#include "driver/mcpwm_cmpr.h"
+#include "driver/mcpwm_gen.h"
 
 SFEVL53L1X distanceSensor;
+// ------------------------------------------------------------
+// CURRENT CHECK
+// ------------------------------------------------------------
+#define CURR_PIN               34
+#define CURR_CHECK_WINDOW_MS   10 //ms
+#define CURR_TRIP_LIMIT        1000 //analogRead counts
+#define CURR_TRIPS_MAX         2
 
 // ============================================================
 //  PIN / PWM CONFIG
@@ -15,10 +25,13 @@ SFEVL53L1X distanceSensor;
 #define PWM_GPIO_CW   26
 #define PWM_GPIO_CCW  27
 #define HOME_PIN      25
-#define PWM_FREQ      1000
-#define PWM_RES_BITS  8
-#define PWM_CH_CW     LEDC_CHANNEL_0
-#define PWM_CH_CCW    LEDC_CHANNEL_1
+
+#define PWM_TIMEBASE_HZ       1000000 // 1MHZ -> 1 tick = 1us
+#define PWM_FREQ_HZ           1000 // 1kHZ
+#define PWM_PERIOD_TICKS      (PWM_TIMEBASE_HZ/PWM_FREQ_HZ) // 1000 ticks = 1ms
+#define DUTY_PCT              15
+#define DUTY_TICKS            (PWM_PERIOD_TICKS*DUTY_PCT/100) // duty cycle lasts 150/1000 ticks
+#define SAMPLE_TICKS          100 // sample at tick 100
 
 // ============================================================
 //  STEPPER CONFIG
@@ -33,7 +46,7 @@ SFEVL53L1X distanceSensor;
 #define ACC                25
 #define ACC_DISC_INTERVAL  10
 
-#define HOMING_SPEED       1000
+#define HOMING_SPEED       2000
 #define BACKOFF_SPEED      500
 
 #define FB_TOL             10
@@ -41,8 +54,7 @@ SFEVL53L1X distanceSensor;
 // ============================================================
 //  DRILL CONFIG
 // ============================================================
-#define DRILL_STARTUP_MS   2000   // ms to spin up/down drill before/after move
-#define DRILL_DUTY_PCT     0//15     // PWM duty cycle for drill motor (0-100)
+#define DRILL_STARTUP_MS   1000   // ms to spin up/down drill before/after move
 
 // ============================================================
 //  EEPROM CONFIG
@@ -62,7 +74,22 @@ SFEVL53L1X distanceSensor;
 // ============================================================
 #define RC_OK              0
 #define RC_MOVE_UNSAFE     1
+#define RC_OVERCURRENT     2
 // codes 2-9 reserved
+
+//mcpwm handles
+mcpwm_timer_handle_t timer = NULL;
+mcpwm_oper_handle_t oper = NULL;
+mcpwm_cmpr_handle_t duty_comparator = NULL;
+mcpwm_cmpr_handle_t sample_comparator = NULL;
+mcpwm_gen_handle_t cw_generator = NULL;
+mcpwm_gen_handle_t ccw_generator = NULL;
+
+volatile bool sample_flag = false;
+volatile uint16_t last_curr = 0;
+
+uint32_t curr_window = 0;
+uint8_t curr_trips = 0;
 
 // ============================================================
 //  CALIBRATION DATA
@@ -87,6 +114,68 @@ bool    fbCalValid = false;
 // ============================================================
 volatile long currentPos = 0;
 bool          isHomed    = false;
+
+volatile bool overcurrent      = false;
+bool          currentArmed     = false;
+
+// ------------------------------------------------------------
+// CURRENT READINGS
+// ------------------------------------------------------------
+static bool IRAM_ATTR current_flag(mcpwm_cmpr_handle_t comparator, const mcpwm_compare_event_data_t *edata, void *user_ctx){
+  sample_flag = true;
+  return false;
+}
+
+void checkCurr(){
+    if (!currentArmed || overcurrent) return;
+
+    if (sample_flag){
+        sample_flag = false;
+        last_curr = analogRead(CURR_PIN);
+        //Serial.printf("%d, ", last_curr);
+        if (last_curr > CURR_TRIP_LIMIT) curr_trips++;
+    }
+       
+    if (millis() - curr_window >= CURR_CHECK_WINDOW_MS){
+        if (curr_trips >= CURR_TRIPS_MAX) overcurrent = true;
+        
+        curr_trips = 0;
+        curr_window = millis();
+        //Serial.println();
+    }
+}
+
+void doSense(){
+    // drill OFF baseline
+    uint32_t sum = 0; uint16_t n = 0;
+    uint32_t t0 = millis();
+    while (n < 200 && millis() - t0 < 2000){
+        if (sample_flag){
+            sample_flag = false;
+            uint16_t v = analogRead(CURR_PIN);
+            sum += v; n++;
+            if (n % 20 == 0) Serial.printf("%d, ", v);
+        }
+    }
+    Serial.printf("\ndrill OFF avg: %lu (n=%u)\n", n ? sum/n : 0, n);
+
+    drillCW(DUTY_PCT);
+    delay(DRILL_STARTUP_MS);
+
+    // drill ON
+    sum = 0; n = 0; t0 = millis();
+    while (n < 200 && millis() - t0 < 2000){
+        if (sample_flag){
+            sample_flag = false;
+            uint16_t v = analogRead(CURR_PIN);
+            sum += v; n++;
+            if (n % 20 == 0) Serial.printf("%d, ", v);
+        }
+    }
+    Serial.printf("\ndrill ON avg: %lu (n=%u)\n", n ? sum/n : 0, n);
+
+    pwmOff();
+}
 
 // ============================================================
 //  EEPROM HELPERS
@@ -140,14 +229,28 @@ void loadCalibration() {
 // ============================================================
 //  PWM HELPERS
 // ============================================================
-void setDuty(ledc_channel_t ch, uint32_t duty) {
-    ledc_set_duty(LEDC_HIGH_SPEED_MODE, ch, duty);
-    ledc_update_duty(LEDC_HIGH_SPEED_MODE, ch);
+void setDuty(uint8_t pct) {
+    uint32_t duty_ticks = (uint32_t)pct * PWM_PERIOD_TICKS / 100;
+    mcpwm_comparator_set_compare_value(duty_comparator, duty_ticks);
 }
 
-void bothOff() {
-    setDuty(PWM_CH_CW,  0);
-    setDuty(PWM_CH_CCW, 0);
+//spin CW: CCW pin forced low, CW pin follows PWM
+void drillCW(uint8_t pct){
+    setDuty(pct);
+    mcpwm_generator_set_force_level(ccw_generator, 0, true);   // force CCW low
+    mcpwm_generator_set_force_level(cw_generator, -1, true);   // release CW (follow actions)
+}
+
+//spin CCW: CW pin forced low, CCW pin follows PWM
+void drillCCW(uint8_t pct){
+    setDuty(pct);
+    mcpwm_generator_set_force_level(cw_generator, 0, true);    // force CW low
+    mcpwm_generator_set_force_level(ccw_generator, -1, true);  // release CCW
+}
+
+void pwmOff(){
+    mcpwm_generator_set_force_level(cw_generator, 0, true);    // both forced low
+    mcpwm_generator_set_force_level(ccw_generator, 0, true);
 }
 
 // ============================================================
@@ -167,22 +270,13 @@ void checkStop() {
             while (Serial.available()) tail += (char)Serial.read();
             tail.trim();
             if (tail == "top") {
-                bothOff();
+                pwmOff();
                 Serial.flush();
                 Serial.println("ESTOP");
                 esp_restart();
             }
         }
     }
-}
-
-
-void pwmSetChannel(ledc_channel_t ch, uint8_t pct) {
-    uint32_t duty  = (uint32_t)(pct * (1 << PWM_RES_BITS) / 100);
-    ledc_channel_t other = (ch == PWM_CH_CW) ? PWM_CH_CCW : PWM_CH_CW;
-    setDuty(other, 0);
-    delay(1);
-    setDuty(ch, duty);
 }
 
 // ============================================================
@@ -195,37 +289,69 @@ bool homeTriggered() {
 // ============================================================
 //  HARDWARE INIT
 // ============================================================
-void pwmInit() {
-    ledc_timer_config_t timer = {
-        .speed_mode      = LEDC_HIGH_SPEED_MODE,
-        .duty_resolution = (ledc_timer_bit_t)PWM_RES_BITS,
-        .timer_num       = LEDC_TIMER_0,
-        .freq_hz         = PWM_FREQ,
-        .clk_cfg         = LEDC_AUTO_CLK
-    };
-    ledc_timer_config(&timer);
+void mcpwm_init(){
 
-    ledc_channel_config_t chCW = {
-        .gpio_num   = PWM_GPIO_CW,
-        .speed_mode = LEDC_HIGH_SPEED_MODE,
-        .channel    = PWM_CH_CW,
-        .intr_type  = LEDC_INTR_DISABLE,
-        .timer_sel  = LEDC_TIMER_0,
-        .duty       = 0,
-        .hpoint     = 0
-    };
-    ledc_channel_config(&chCW);
+  //configure and create timer
+  mcpwm_timer_config_t timer_cfg = {
+    .group_id       = 0,
+    .clk_src        = MCPWM_TIMER_CLK_SRC_DEFAULT,
+    .resolution_hz  = PWM_TIMEBASE_HZ,
+    .count_mode     = MCPWM_TIMER_COUNT_MODE_UP,
+    .period_ticks    = PWM_PERIOD_TICKS,
+  };
+  ESP_ERROR_CHECK(mcpwm_new_timer(&timer_cfg, &timer));
 
-    ledc_channel_config_t chCCW = {
-        .gpio_num   = PWM_GPIO_CCW,
-        .speed_mode = LEDC_HIGH_SPEED_MODE,
-        .channel    = PWM_CH_CCW,
-        .intr_type  = LEDC_INTR_DISABLE,
-        .timer_sel  = LEDC_TIMER_0,
-        .duty       = 0,
-        .hpoint     = 0
-    };
-    ledc_channel_config(&chCCW);
+  //configure and create operator
+  mcpwm_operator_config_t operator_cfg = {
+    .group_id = 0,
+  };
+  ESP_ERROR_CHECK(mcpwm_new_operator(&operator_cfg, &oper));
+
+  //connect operator to timer
+  ESP_ERROR_CHECK(mcpwm_operator_connect_timer(oper, timer));
+
+  //configure and create comparator
+  mcpwm_comparator_config_t comparator_cfg = {
+    .flags = { .update_cmp_on_tez = true },
+  };
+  ESP_ERROR_CHECK(mcpwm_new_comparator(oper, &comparator_cfg, &duty_comparator)); //comparator to indicate end of duty cycle
+  ESP_ERROR_CHECK(mcpwm_comparator_set_compare_value(duty_comparator, DUTY_TICKS));
+
+  //configure and create CW generator
+  mcpwm_generator_config_t generator_cw_cfg = {
+    .gen_gpio_num = PWM_GPIO_CW,
+  };
+  ESP_ERROR_CHECK(mcpwm_new_generator(oper, &generator_cw_cfg, &cw_generator));
+  //configure and create CCW generator
+  mcpwm_generator_config_t generator_ccw_cfg = {
+    .gen_gpio_num = PWM_GPIO_CCW,
+  };
+  ESP_ERROR_CHECK(mcpwm_new_generator(oper, &generator_ccw_cfg, &ccw_generator));
+
+  //set generator actions
+  //cw
+  ESP_ERROR_CHECK(mcpwm_generator_set_action_on_timer_event(cw_generator, 
+    MCPWM_GEN_TIMER_EVENT_ACTION(MCPWM_TIMER_DIRECTION_UP, MCPWM_TIMER_EVENT_EMPTY, MCPWM_GEN_ACTION_HIGH))); //set pin high on timer empty
+  ESP_ERROR_CHECK(mcpwm_generator_set_action_on_compare_event(cw_generator,
+    MCPWM_GEN_COMPARE_EVENT_ACTION(MCPWM_TIMER_DIRECTION_UP, duty_comparator, MCPWM_GEN_ACTION_LOW))); //set pin low on duty comparator (end of duty cycle)
+  //ccw
+  ESP_ERROR_CHECK(mcpwm_generator_set_action_on_timer_event(ccw_generator, 
+    MCPWM_GEN_TIMER_EVENT_ACTION(MCPWM_TIMER_DIRECTION_UP, MCPWM_TIMER_EVENT_EMPTY, MCPWM_GEN_ACTION_HIGH))); //set pin high on timer empty
+  ESP_ERROR_CHECK(mcpwm_generator_set_action_on_compare_event(ccw_generator,
+    MCPWM_GEN_COMPARE_EVENT_ACTION(MCPWM_TIMER_DIRECTION_UP, duty_comparator, MCPWM_GEN_ACTION_LOW))); //set pin low on duty comparator (end of duty cycle)
+
+  //create sample comparator to call current_sense callback at half duty on ticks
+  ESP_ERROR_CHECK(mcpwm_new_comparator(oper, &comparator_cfg, &sample_comparator)); //comparator for half duty cycle (sense current)
+  ESP_ERROR_CHECK(mcpwm_comparator_set_compare_value(sample_comparator, SAMPLE_TICKS));
+  //register sample callback function
+  mcpwm_comparator_event_callbacks_t sample_cb_cfg = {
+    .on_reach = current_flag,
+  };
+  ESP_ERROR_CHECK(mcpwm_comparator_register_event_callbacks(sample_comparator, &sample_cb_cfg, NULL));
+
+  //start timer
+  ESP_ERROR_CHECK(mcpwm_timer_enable(timer));
+  ESP_ERROR_CHECK(mcpwm_timer_start_stop(timer, MCPWM_TIMER_START_NO_STOP));
 }
 
 void rmtStepperInit() {
@@ -274,6 +400,7 @@ void sendStep(uint32_t freq_hz) {
 
     rmt_write_items(RMT_CHANNEL, &item, 1, true);
     checkStop();
+    checkCurr();
 }
 
 // ============================================================
@@ -294,12 +421,12 @@ void moveRelative(long steps) {
     uint32_t vel_steps    = acc_steps / ACC_DISC_INTERVAL;
     uint32_t coast_steps  = n - 2 * (vel_steps * ACC_DISC_INTERVAL);
 
-    for (uint32_t i = 0; i < vel_steps; i++) {
+    for (uint32_t i = 0; i < vel_steps && !overcurrent; i++) {
         for (uint16_t j = 0; j < ACC_DISC_INTERVAL; j++) sendStep(f);
         f += ACC;
     }
-    for (uint32_t i = 0; i < coast_steps; i++) sendStep(f);
-    for (uint32_t i = 0; i < vel_steps; i++) {
+    for (uint32_t i = 0; i < coast_steps && !overcurrent; i++) sendStep(f);
+    for (uint32_t i = 0; i < vel_steps && !overcurrent; i++) {
         for (uint16_t j = 0; j < ACC_DISC_INTERVAL; j++) sendStep(f);
         f -= ACC;
     }
@@ -392,31 +519,45 @@ void doHome() {
 //
 int doDrill() {
     if (!isHomed || !calValid) return RC_MOVE_UNSAFE;
-
+    
+    overcurrent = false;
+    curr_trips = 0;
+    curr_window = millis();
+    currentArmed = false;
+    
     // 1. Spin up drill CW
-    pwmSetChannel(PWM_CH_CW, DRILL_DUTY_PCT);
+    drillCW(DUTY_PCT);
     delay(DRILL_STARTUP_MS);
+    currentArmed = true;
 
     // 2. Feed to max range
     bool ok = moveAbsoluteCheck(calData.range);
+
+    if (overcurrent) {
+        currentArmed = false;
+        pwmOff();
+        isHomed = false;
+        return RC_OVERCURRENT;
+    }
+
     if (!ok) {
-        bothOff();
+        pwmOff();
         return RC_MOVE_UNSAFE;
     }
 
     // 3. Reverse drill CCW
-    pwmSetChannel(PWM_CH_CCW, DRILL_DUTY_PCT);
+    drillCCW(DUTY_PCT);
     delay(DRILL_STARTUP_MS);
 
     // 4. Return to home offset
     ok = moveAbsoluteCheck(calData.offset);
     if (!ok) {
-        bothOff();
+        pwmOff();
         return RC_MOVE_UNSAFE;
     }
 
     // 5. Stop drill
-    bothOff();
+    pwmOff();
 
     return RC_OK;
 }
@@ -438,10 +579,13 @@ void handleCommand(const String &raw) {
         Serial.println(rc);
 
     } else if (cmd.equalsIgnoreCase("stop")) {
-        bothOff();
+        pwmOff();
         Serial.flush();
         esp_restart();
+    } else if (cmd.equalsIgnoreCase("sense")) {
+        doSense();
     }
+    
     // unknown commands silently ignored
 }
 
@@ -462,8 +606,8 @@ void setup() {
     digitalWrite(DIR_GPIO, HIGH);
 
     rmtStepperInit();
-    pwmInit();
-    bothOff();
+    mcpwm_init();
+    pwmOff();
     feedbackSensorInit();
     loadCalibration();
 }
