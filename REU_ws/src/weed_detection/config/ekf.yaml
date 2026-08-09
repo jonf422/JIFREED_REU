@@ -119,6 +119,26 @@ ekf_filter_node_map:
                   false, false, false]
     imu0_queue_size: 10
 
+    # imu1 is gps_heading_node's converted yaw from the skytraq PX1172RH's
+    # dual-antenna RTK heading (ENU, absolute -- not a rate like imu0's vyaw).
+    # This is what lets the map filter correct heading directly, instead of
+    # only ever inferring it indirectly from a string of GPS position fixes
+    # while driving.
+    imu1: /gps/heading
+    imu1_config: [false, false, false,
+                  false, false, true,
+                  false, false, false,
+                  false, false, false,
+                  false, false, false]
+    imu1_queue_size: 10
+    imu1_differential: false
+    imu1_relative: false
+    # Mahalanobis gate on the yaw portion of imu1, same purpose as
+    # odom1_pose_rejection_threshold below -- reject a single wildly
+    # inconsistent heading (multipath / momentary loss of the RTK heading fix)
+    # without needing better hardware. Keep generous for the same reason.
+    imu1_pose_rejection_threshold: 3.0
+
     # This is the filter waypoint_manager_node actually reads (/odometry/global), so it's
     # where fusion quality matters most.
     #

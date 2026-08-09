@@ -25,7 +25,7 @@ class MissionManagerNode(Node):
 
         self.declare_parameter('coords', [0.0,0.0])
         self.declare_parameter('frame', 'odom')
-        self.declare_parameter('required_topics', ['/imu/data', '/odom', '/odometry/local', '/odometry/gps', '/odometry/global'])
+        self.declare_parameter('required_topics', ['/imu/data', '/odom', '/odometry/local', '/odometry/gps', '/odometry/global', '/gps/heading'])
 
         self.required_topics = self.get_parameter('required_topics').value
         self.frame = self.get_parameter('frame').value

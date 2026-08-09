@@ -98,7 +98,7 @@ def generate_launch_description():
         name='navsat_transform',
         parameters=[os.path.join(get_package_share_directory('weed_detection'), 'config', 'ekf.yaml')],
         remappings=[('gps/fix', '/fix'),
-                    ('imu', '/imu/data'),
+                    ('imu', '/gps/heading'),
                     ('odometry/filtered', 'odometry/global'),
                     ],
         condition=UnlessCondition(gps_off),

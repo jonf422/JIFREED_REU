@@ -91,6 +91,12 @@ def generate_launch_description():
             }],
             condition=UnlessCondition(gps_off),
         ),
+        Node( #Converts nmea_navsat_driver's /heading (dual-antenna RTK) to a usable absolute yaw
+            package='weed_detection',
+            executable='gps_heading_node',
+            name='gps_heading_node',
+            condition=UnlessCondition(gps_off),
+        ),
         # --- Control -------------------------------
         Node(
             package='weed_detection',

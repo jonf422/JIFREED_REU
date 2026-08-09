@@ -45,6 +45,7 @@ setup(
             "wheel_odom_node = weed_detection.navigation.wheel_odom_node:main",
             "waypoint_manager_node = weed_detection.navigation.waypoint_manager_node:main",
             "waypoint_local_node = weed_detection.navigation.waypoint_local_node:main",
+            "gps_heading_node = weed_detection.navigation.gps_heading_node:main",
 
             #Display
             "combined_display_node = weed_detection.display.combined_display_node:main",
@@ -55,8 +56,11 @@ setup(
 
             #Calibration
             "imu_noise_cali = weed_detection.calibration.imu_noise_cali:main",
-            "drive_calibration = weed_detection.calibration.drive_calibration:main" 
-            
+            "drive_calibration = weed_detection.calibration.drive_calibration:main",
+
+            #Utils
+            "live_plot_node = weed_detection.utils.live_plot:main"
+
         ],
     },
 )
