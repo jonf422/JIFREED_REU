@@ -15,7 +15,7 @@ ODOM_QOS = QoSProfile(
 class State(Enum):
     INITIALIZING = auto()
     WAYPOINT = auto()
-    PATROL = auto()
+    #PATROL = auto()
     DONE = auto()
     FAILED = auto()
 
@@ -57,7 +57,7 @@ class MissionManagerNode(Node):
         if self.state == State.INITIALIZING:
             if self.all_nodes_ready():
                 if self.coords[0] == 0.0 and self.coords[1] == 0.0:
-                    self.transition(State.PATROL)
+                    self.transition(State.DONE)
                 elif self.waypoint_client.server_is_ready():
                     self.transition(State.WAYPOINT)
                     self.send_waypoint_cmd(self.coords, self.frame)
@@ -65,13 +65,13 @@ class MissionManagerNode(Node):
         elif self.state == State.WAYPOINT:
             if self.action_done:
                 if self.action_code == 0:
-                    self.transition(State.PATROL)
+                    self.transition(State.DONE)
                 else:
                     self.transition(State.FAILED)
         
         # TODO: IMplement visual servoing path patrol
-        elif self.state == State.PATROL:
-            self.transition(State.DONE)
+        #elif self.state == State.PATROL:
+        #    self.transition(State.DONE)
     
 
         elif self.state == State.DONE:
