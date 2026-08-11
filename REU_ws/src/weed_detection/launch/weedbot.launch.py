@@ -7,6 +7,12 @@ Robot Launch File
 
 Parameters:
         headless_launch     Bool - Launch without display (Default: False)
+        coords              Float list - Ordered waypoints, flat pairs: [x1,y1,x2,y2,...]
+                            (Default: [0.0,0.0] = skip navigation)
+        frame               Str - Frame for coords, 'odom' or 'map' (Default: odom)
+
+Example:
+        ros2 launch weed_detection weedbot.launch.py coords:="[3.0,0.0, 3.0,2.0, 0.0,2.0]"
 '''
 from launch import LaunchDescription
 from launch.actions import DeclareLaunchArgument
@@ -44,7 +50,10 @@ def generate_launch_description():
         DeclareLaunchArgument(
             'coords',
             default_value='[0.0,0.0]',
-            description='Target Waypoint [x,y] or [lat,lon] (MAX RANGE default = 20 m). Default waypoint [0.0,0.0] will skip waypoint navigation)'
+            description='Ordered target waypoints as a flat list of pairs: [x1,y1,x2,y2,...] or '
+                        '[lat1,lon1,lat2,lon2,...]. Each leg is sent as its own goal and must be '
+                        'within MAX RANGE (default 20 m) of the robot when that leg starts. '
+                        'The default [0.0,0.0] skips waypoint navigation.'
         ),
         DeclareLaunchArgument(
             'frame',

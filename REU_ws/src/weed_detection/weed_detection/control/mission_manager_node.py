@@ -29,12 +29,15 @@ class MissionManagerNode(Node):
 
         self.required_topics = self.get_parameter('required_topics').value
         self.frame = self.get_parameter('frame').value
-        raw = self.get_parameter('coords').value
-        if len(raw) != 2:
-            self.get_logger().error(f'coords must be [x, y], got {list(raw)} — treating as no-waypoint')
-            self.coords = [0.0, 0.0]
+        self.waypoints = self._parse_coords(self.get_parameter('coords').value)
+        self.wp_index = 0             # index of the waypoint currently being driven
+
+        if self.waypoints:
+            self.get_logger().info(
+                f'Mission has {len(self.waypoints)} waypoint(s) in frame \'{self.frame}\': ' +
+                ' -> '.join(f'({a},{b})' for a, b in self.waypoints))
         else:
-            self.coords = list(raw)
+            self.get_logger().info('No waypoints given — mission will complete immediately')
 
         #set state
         self.state = State.INITIALIZING
@@ -56,30 +59,38 @@ class MissionManagerNode(Node):
     def tick(self):
         if self.state == State.INITIALIZING:
             if self.all_nodes_ready():
-                if self.coords[0] == 0.0 and self.coords[1] == 0.0:
+                if not self.waypoints:
                     self.transition(State.DONE)
                 elif self.waypoint_client.server_is_ready():
                     self.transition(State.WAYPOINT)
-                    self.send_waypoint_cmd(self.coords, self.frame)
-        
+                    self.send_current_waypoint()
+
         elif self.state == State.WAYPOINT:
             if self.action_done:
-                if self.action_code == 0:
-                    self.transition(State.DONE)
-                else:
+                if self.action_code != 0:
+                    self.get_logger().error(
+                        f'Waypoint {self.wp_index + 1}/{len(self.waypoints)} failed '
+                        f'(code {self.action_code}) — aborting remaining waypoints')
                     self.transition(State.FAILED)
-        
+                else:
+                    #this leg succeeded; move on to the next one, if any
+                    self.wp_index += 1
+                    if self.wp_index >= len(self.waypoints):
+                        self.transition(State.DONE)
+                    else:
+                        self.send_current_waypoint()
+
         # TODO: IMplement visual servoing path patrol
         #elif self.state == State.PATROL:
         #    self.transition(State.DONE)
     
 
         elif self.state == State.DONE:
-            self.get_logger().info('Mission COMPLETE')
+            self.get_logger().info(f'Mission COMPLETE — {self.wp_index}/{len(self.waypoints)} waypoints reached')
             self._timer.cancel()
 
         elif self.state == State.FAILED:
-            self.get_logger().info('Mission FAILED')
+            self.get_logger().info(f'Mission FAILED — {self.wp_index}/{len(self.waypoints)} waypoints reached')
             self._timer.cancel()
 
     # -----------------------------------
@@ -88,6 +99,27 @@ class MissionManagerNode(Node):
     def transition(self, next_state):
         self.get_logger().info(f'{self.state.name} -> {next_state.name}')
         self.state = next_state
+
+    # -----------------------------------
+    # Parameter Parsing
+    # -----------------------------------
+    def _parse_coords(self, raw):
+        """Flat [x1,y1, x2,y2, ...] -> [(x1,y1), (x2,y2), ...]. [0,0] means 'no waypoint'."""
+        flat = [float(v) for v in (raw or [])]
+
+        if len(flat) % 2 != 0:
+            self.get_logger().error(
+                f'coords must be a flat list of x,y pairs, got {flat} '
+                f'({len(flat)} values) — treating as no-waypoint')
+            return []
+
+        pairs = [(flat[i], flat[i + 1]) for i in range(0, len(flat), 2)]
+
+        #a lone [0.0, 0.0] is the documented "skip navigation" sentinel
+        if pairs == [(0.0, 0.0)]:
+            return []
+
+        return pairs
 
     # -----------------------------------
     # Initialization Check
@@ -115,6 +147,10 @@ class MissionManagerNode(Node):
     # -----------------------------------
     # Navigation Functions
     # -----------------------------------
+    def send_current_waypoint(self):
+        """Dispatch the waypoint at self.wp_index as its own action goal."""
+        self.send_waypoint_cmd(list(self.waypoints[self.wp_index]), self.frame)
+
     def send_waypoint_cmd(self, cmd, frame):
         self.action_done = False
         self.action_code = None
@@ -122,7 +158,8 @@ class MissionManagerNode(Node):
         goal = WaypointCommand.Goal()
         goal.coordinates = cmd
         goal.frame = frame
-        self.get_logger().info(f"Sending coordinates: {cmd}")
+        self.get_logger().info(
+            f"Sending waypoint {self.wp_index + 1}/{len(self.waypoints)}: {cmd} ({frame})")
 
         send_future = self.waypoint_client.send_goal_async(goal, self._on_feedback)
         send_future.add_done_callback(self.on_goal_response)
@@ -134,7 +171,7 @@ class MissionManagerNode(Node):
     def on_goal_response(self, future):
         goal_handle = future.result()
         if not goal_handle.accepted:
-            self.get_logger().error("Goal rejected")
+            self.get_logger().error(f"Waypoint {self.wp_index + 1}/{len(self.waypoints)} goal rejected")
             self.action_done = True
             self.action_code = -1        # sentinel: tick treats as failure
             return
@@ -144,13 +181,16 @@ class MissionManagerNode(Node):
     def _on_result(self, future):
         result = future.result().result
         self.get_logger().info(
-            f"Result: code {result.return_code} ({result.message})")
+            f"Waypoint {self.wp_index + 1}/{len(self.waypoints)} result: "
+            f"code {result.return_code} ({result.message})")
         self.action_code = result.return_code
         self.action_done = True
 
     def _on_feedback(self, msg):
         feedback = msg.feedback
-        self.get_logger().info(f'Distance Remaining: {feedback.status} m', throttle_duration_sec=0.5)
+        self.get_logger().info(
+            f'Waypoint {self.wp_index + 1}/{len(self.waypoints)} — Distance Remaining: {feedback.status} m',
+            throttle_duration_sec=0.5)
 
 
 def main():
