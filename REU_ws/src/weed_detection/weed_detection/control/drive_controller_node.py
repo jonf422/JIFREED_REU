@@ -87,6 +87,11 @@ class DriveControllerNode(Node):
             right_cmd *= self._max_actuator / peak
 
         #debug logger
+        self.get_logger().info(
+            f'cmd_vel: v={v:.3f} m/s, w={w:.3f} rad/s -> '
+            f'left={left_cmd:.1f}, right={right_cmd:.1f} motor units',
+            throttle_duration_sec=0.5
+        )
 
         #Send command to Sabertooth Driver
         self._motors.updateMotorSpeed(left_cmd, right_cmd)
