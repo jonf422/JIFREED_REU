@@ -53,8 +53,8 @@ class WaypointManagerNode(Node):
         self.declare_parameter('goal_tolerance', .3) #m
         self.declare_parameter('accept_range', 20.0) #m
         self.declare_parameter('heading_spin_tolerance', math.pi/4) #rad
-        self.declare_parameter('max_linear', .3) #m/s
-        self.declare_parameter('max_angular', 2.2) #rad/s
+        self.declare_parameter('max_linear', .5) #m/s
+        self.declare_parameter('max_angular', 2.8) #rad/s
         self.declare_parameter('frequency', 30.0) #hz
         self.declare_parameter('odom_timeout', .5) #s
         self.declare_parameter('kp_linear', 0.5)
