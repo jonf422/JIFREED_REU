@@ -45,3 +45,10 @@ datasets/
 
 # Venv
 venv/
+
+#folders
+bag_data/
+docs/
+test_robot_controller/
+open-cv_test/
+yolo_test/
